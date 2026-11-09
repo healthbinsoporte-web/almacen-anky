@@ -529,6 +529,17 @@
     let tempMovPhotos = [];
     let db = null;
 
+    // CREDENCIALES FIJAS DE FIREBASE ANKY
+    // La configuración es pública por diseño; protege la base de datos con reglas de Firestore.
+    const AUTO_FIREBASE_CONFIG = {
+      apiKey: "AIzaSyAQZ2pPIokrVWybOMkyYlHQbRE4aGklI_8",
+      authDomain: "almacen-anky.firebaseapp.com",
+      projectId: "almacen-anky",
+      storageBucket: "almacen-anky.firebasestorage.app",
+      messagingSenderId: "845584504347",
+      appId: "1:845584504347:web:dc4f52552bda84b563cabe"
+    };
+
     // Datos iniciales basados en tus documentos reales de Evidence ERP para que veas tu operación real cargada
     const INITIAL_COMS = [
       {
@@ -685,34 +696,47 @@
       }
     }
 
-    // Inicializar conexión Firebase si existe configuración guardada
+    // Inicializar conexión Firebase automáticamente en cualquier dispositivo
     function initCloudConnection() {
-      const savedFb = localStorage.getItem('anky_fb_config');
-      if (savedFb) {
-        try {
-          const configObj = JSON.parse(savedFb);
-          const app = initializeApp(configObj);
-          db = getFirestore(app);
-          document.getElementById('cloudStatusBadge').textContent = "Conectado a Firebase";
-          document.getElementById('cloudStatusBadge').className = "text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200";
+      try {
+        const app = initializeApp(AUTO_FIREBASE_CONFIG);
+        db = getFirestore(app);
 
-          onSnapshot(collection(db, "coms"), (snap) => {
-            if (!snap.empty) {
-              state.coms = snap.docs.map(d => d.data());
-              localStorage.setItem('anky_coms', JSON.stringify(state.coms));
-              renderAll();
-            }
-          });
-          onSnapshot(collection(db, "movimientos"), (snap) => {
-            if (!snap.empty) {
-              state.movimientos = snap.docs.map(d => d.data());
-              localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
-              renderAll();
-            }
-          });
-        } catch (err) {
-          console.error("Error iniciando Firebase:", err);
-        }
+        const badge = document.getElementById('cloudStatusBadge');
+        badge.textContent = "Conectando a Firebase...";
+        badge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-700 border border-amber-200";
+
+        onSnapshot(collection(db, "coms"), (snap) => {
+          if (!snap.empty) {
+            state.coms = snap.docs.map(d => d.data());
+            localStorage.setItem('anky_coms', JSON.stringify(state.coms));
+            renderAll();
+          }
+        }, (err) => {
+          console.error("Error leyendo COMs de Firebase:", err);
+          badge.textContent = "Error Firebase";
+          badge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-red-50 text-red-700 border border-red-200";
+        });
+
+        onSnapshot(collection(db, "movimientos"), (snap) => {
+          if (!snap.empty) {
+            state.movimientos = snap.docs.map(d => d.data());
+            localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
+            renderAll();
+          }
+        }, (err) => {
+          console.error("Error leyendo movimientos de Firebase:", err);
+          badge.textContent = "Error Firebase";
+          badge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-red-50 text-red-700 border border-red-200";
+        });
+
+        badge.textContent = "Conectado a Firebase";
+        badge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200";
+      } catch (err) {
+        console.error("Error iniciando Firebase:", err);
+        const badge = document.getElementById('cloudStatusBadge');
+        badge.textContent = "Error Firebase";
+        badge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-red-50 text-red-700 border border-red-200";
       }
     }
 
@@ -1456,7 +1480,7 @@
       const cName = document.getElementById('cloudinaryNameInput').value.trim();
       const cPreset = document.getElementById('cloudinaryPresetInput').value.trim();
 
-      if (fbText) localStorage.setItem('anky_fb_config', fbText);
+      // Firebase ya está configurado automáticamente en el código.
       if (cName) localStorage.setItem('anky_cloud_name', cName);
       if (cPreset) localStorage.setItem('anky_cloud_preset', cPreset);
 

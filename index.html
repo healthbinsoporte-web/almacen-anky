@@ -1,0 +1,1475 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ANKY Cuernavaca | Control de Almacén y Logística</title>
+  <!-- Tailwind CSS por CDN (Sin instalar nada) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PDF.js para leer automáticamente los PDFs de Evidence ERP -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Iconos limpios -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <style>
+    body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #0f172a; }
+    .tab-active { border-bottom: 2px solid #0f172a; color: #0f172a; font-weight: 600; }
+    .modal-bg { background-color: rgba(15, 23, 42, 0.55); backdrop-filter: blur(2px); }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col pb-16 md:pb-0">
+
+  <!-- BARRA SUPERIOR -->
+  <header class="bg-white border-b border-slate-200 sticky top-0 z-30">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+      <div class="flex items-center gap-3">
+        <div class="w-9 h-9 rounded-lg bg-slate-900 text-white flex items-center justify-center font-bold text-sm tracking-wider">
+          AK
+        </div>
+        <div>
+          <h1 class="text-base font-bold text-slate-900 leading-tight">ANKY Almacén Central</h1>
+          <p class="text-xs text-slate-500">Cuernavaca → Minas y Almacenes</p>
+        </div>
+      </div>
+
+      <!-- Buscador rápido global -->
+      <div class="hidden md:flex items-center flex-1 max-w-md mx-6">
+        <div class="relative w-full">
+          <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
+          <input id="globalSearch" type="text" oninput="renderAll()" placeholder="Buscar COM (ej. 3942), folio (19990), material, destino o solicitante..." 
+            class="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-100 border border-transparent rounded-lg focus:bg-white focus:border-slate-300 focus:outline-none transition" />
+        </div>
+      </div>
+
+      <!-- Botones de Usuario y Configuración -->
+      <div class="flex items-center gap-2">
+        <span id="cloudStatusBadge" class="text-xs px-2.5 py-1 rounded-full font-medium bg-amber-50 text-amber-700 border border-amber-200">
+          Modo Local
+        </span>
+        <button onclick="openModal('userModal')" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5">
+          <i data-lucide="user" class="w-3.5 h-3.5"></i>
+          <span id="currentUserLabel">Luis (Almacén)</span>
+        </button>
+        <button onclick="openModal('configModal')" title="Configurar Firebase y Cloudinary" class="p-2 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg">
+          <i data-lucide="settings" class="w-4 h-4"></i>
+        </button>
+      </div>
+    </div>
+
+    <!-- Buscador móvil -->
+    <div class="md:hidden px-4 pb-3">
+      <input id="globalSearchMobile" type="text" oninput="syncMobileSearch(this.value)" placeholder="Buscar COM, folio, material, destino..." 
+        class="w-full px-3 py-1.5 text-sm bg-slate-100 border border-slate-200 rounded-lg focus:bg-white focus:outline-none" />
+    </div>
+
+    <!-- Navegación Desktop -->
+    <nav class="hidden md:flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 text-sm text-slate-500 overflow-x-auto">
+      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="py-3 tab-active flex items-center gap-2">
+        <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
+      </button>
+      <button onclick="switchTab('coms')" id="tab-coms" class="py-3 hover:text-slate-900 flex items-center gap-2">
+        <i data-lucide="file-text" class="w-4 h-4"></i> Gestión de COMs
+      </button>
+      <button onclick="switchTab('movimientos')" id="tab-movimientos" class="py-3 hover:text-slate-900 flex items-center gap-2">
+        <i data-lucide="arrow-left-right" class="w-4 h-4"></i> Entradas y Salidas Evidence
+      </button>
+      <button onclick="switchTab('logistica')" id="tab-logistica" class="py-3 hover:text-slate-900 flex items-center gap-2">
+        <i data-lucide="truck" class="w-4 h-4"></i> Calendario Logística
+      </button>
+      <button onclick="switchTab('aclaraciones')" id="tab-aclaraciones" class="py-3 hover:text-slate-900 flex items-center gap-2">
+        <i data-lucide="help-circle" class="w-4 h-4"></i> Aclaraciones Jefes y Bitácora
+        <span id="badgeAclaraciones" class="hidden bg-red-100 text-red-700 text-xs px-1.5 py-0.2 rounded-full font-bold">0</span>
+      </button>
+    </nav>
+  </header>
+
+  <!-- CONTENIDO PRINCIPAL -->
+  <main class="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- BARRA DE ACCIONES RÁPIDAS -->
+    <div class="flex flex-wrap items-center justify-between gap-3 mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+      <div>
+        <h2 class="text-sm font-semibold text-slate-900">Captura Rápida e Inteligente (Evidence ERP)</h2>
+        <p class="text-xs text-slate-500">Sube un PDF de Compra, Entrada, Traspaso o Salida por Consumo y el sistema extraerá los datos automáticamente.</p>
+      </div>
+      <div class="flex flex-wrap gap-2">
+        <label class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-2 shadow-sm transition">
+          <i data-lucide="file-up" class="w-4 h-4"></i>
+          <span>Leer PDF de Evidence</span>
+          <input type="file" accept="application/pdf" class="hidden" onchange="handlePdfAutoRead(event)" />
+        </label>
+        <button onclick="openComModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5">
+          <i data-lucide="plus" class="w-4 h-4"></i> Nueva COM
+        </button>
+        <button onclick="openMovModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5">
+          <i data-lucide="plus-circle" class="w-4 h-4"></i> Nuevo Movimiento
+        </button>
+      </div>
+    </div>
+
+    <!-- VISTA 1: DASHBOARD -->
+    <section id="view-dashboard" class="space-y-6">
+      <!-- Tarjetas de resumen -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" id="dashboardKpis"></div>
+
+      <!-- Mapa visual de flujo Cuernavaca -> Destinos -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
+        <div class="flex items-center justify-between mb-3">
+          <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Estado por Destino (Flujo Operativo ANKY)</h3>
+          <span class="text-xs text-slate-400">Clic en un destino para filtrar</span>
+        </div>
+        <div class="grid grid-cols-2 md:grid-cols-6 gap-2.5" id="destinationFlowCards"></div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- Atención Inmediata: Salidas en Evidence pendientes de envío físico -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-amber-500"></span>
+              Con Salida en Evidence pero SIN Enviar Físicamente
+            </h3>
+            <button onclick="switchTab('logistica')" class="text-xs text-slate-500 hover:text-slate-900">Ver calendario →</button>
+          </div>
+          <div id="dashPendingShipments" class="divide-y divide-slate-100 max-h-80 overflow-y-auto"></div>
+        </div>
+
+        <!-- COMs pendientes de aclaración o recepción parcial -->
+        <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+          <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
+            <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
+              <span class="w-2 h-2 rounded-full bg-red-500"></span>
+              COMs por Aclarar o en Piso Cuernavaca
+            </h3>
+            <button onclick="switchTab('coms')" class="text-xs text-slate-500 hover:text-slate-900">Ver todas →</button>
+          </div>
+          <div id="dashAttentionComs" class="divide-y divide-slate-100 max-h-80 overflow-y-auto"></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- VISTA 2: GESTIÓN DE COMs -->
+    <section id="view-coms" class="hidden space-y-4">
+      <div class="flex flex-wrap items-center justify-between gap-2">
+        <div class="flex flex-wrap gap-1.5" id="comFilterPills">
+          <button onclick="setComFilter('ALL')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium">Todas</button>
+          <button onclick="setComFilter('ACLARAR')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Por Aclarar</button>
+          <button onclick="setComFilter('PARCIAL')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Entrega Parcial</button>
+          <button onclick="setComFilter('EN_CUERNAVACA')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">En Cuernavaca</button>
+          <button onclick="setComFilter('PERMANECE')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Se queda en Cuernavaca</button>
+        </div>
+      </div>
+      <div id="comsListContainer" class="space-y-3"></div>
+    </section>
+
+    <!-- VISTA 3: MOVIMIENTOS EVIDENCE (ENTRADAS, TRASPASOS Y CONSUMOS) -->
+    <section id="view-movimientos" class="hidden space-y-4">
+      <div class="flex flex-wrap gap-1.5">
+        <button onclick="setMovFilter('ALL')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium">Todos</button>
+        <button onclick="setMovFilter('ENTRADA')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700">Entradas por Compra</button>
+        <button onclick="setMovFilter('TRASPASO')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700">Traspasos (A101 / A400)</button>
+        <button onclick="setMovFilter('CONSUMO')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700">Salidas por Consumo (Minas/Talleres)</button>
+      </div>
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500 bg-slate-50">
+              <th class="py-3 px-4">Folio Evidence</th>
+              <th class="py-3 px-4">Tipo / Centro Contable</th>
+              <th class="py-3 px-4">COM Origen</th>
+              <th class="py-3 px-4">Destino Físico</th>
+              <th class="py-3 px-4">Estatus Evidence</th>
+              <th class="py-3 px-4">Estado Físico / Logística</th>
+              <th class="py-3 px-4">Fecha Envío</th>
+              <th class="py-3 px-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="movimientosTableBody" class="divide-y divide-slate-100 text-sm"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VISTA 4: CALENDARIO Y TABLERO DE LOGÍSTICA -->
+    <section id="view-logistica" class="hidden space-y-6">
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
+        <div>
+          <h3 class="text-sm font-bold text-slate-900">Programación de Viajes y Envíos Físicos</h3>
+          <p class="text-xs text-slate-500">Cambia la fecha tentativa o la unidad (AK-54, AK-18, etc.) sin mover ni duplicar archivos.</p>
+        </div>
+        <div class="flex flex-wrap items-center gap-2">
+          <input type="date" id="whatsappDateFilter" class="text-xs border border-slate-300 rounded-lg px-2.5 py-1.5" />
+          <button onclick="copyWhatsAppSummary()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
+            <i data-lucide="share-2" class="w-4 h-4"></i> Copiar Resumen para WhatsApp
+          </button>
+        </div>
+      </div>
+
+      <div id="logisticsColumns" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- VISTA 5: ACLARACIONES DE JEFES Y BITÁCORA -->
+    <section id="view-aclaraciones" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100 bg-red-50/50">
+          <h3 class="text-sm font-bold text-slate-900">COMs que requieren confirmación de Jefe / Supervisor</h3>
+          <p class="text-xs text-slate-500">Solicitante o destino ambiguo en el documento original de compras.</p>
+        </div>
+        <div id="clarificationsList" class="divide-y divide-slate-100 p-4 space-y-3"></div>
+      </div>
+
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100">
+          <h3 class="text-sm font-bold text-slate-900">Historial de Cambios y Trazabilidad</h3>
+          <p class="text-xs text-slate-500">Registro automático de quién creó o modificó fechas, estados y aclaraciones.</p>
+        </div>
+        <div id="auditLogList" class="divide-y divide-slate-100 max-h-[500px] overflow-y-auto p-4 space-y-2.5 text-xs"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- NAVEGACIÓN INFERIOR MÓVIL -->
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 z-30 text-[11px] text-slate-500">
+    <button onclick="switchTab('dashboard')" class="flex flex-col items-center gap-0.5"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Inicio</button>
+    <button onclick="switchTab('coms')" class="flex flex-col items-center gap-0.5"><i data-lucide="file-text" class="w-4 h-4"></i>COMs</button>
+    <button onclick="switchTab('movimientos')" class="flex flex-col items-center gap-0.5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Movimientos</button>
+    <button onclick="switchTab('logistica')" class="flex flex-col items-center gap-0.5"><i data-lucide="truck" class="w-4 h-4"></i>Logística</button>
+    <button onclick="switchTab('aclaraciones')" class="flex flex-col items-center gap-0.5"><i data-lucide="help-circle" class="w-4 h-4"></i>Jefes</button>
+  </nav>
+
+  <!-- MODAL: CREAR / EDITAR COM -->
+  <div id="comModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-slate-200 my-8 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900" id="comModalTitle">Registrar / Editar COM</h3>
+        <button onclick="closeModal('comModal')" class="text-slate-400 hover:text-slate-700">✕</button>
+      </div>
+
+      <form id="comForm" onsubmit="saveCom(event)" class="space-y-4 mt-4 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Número de COM *</label>
+            <input type="text" id="comFolio" required placeholder="Ej. 3942 o 4287" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-900" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Fecha de Compra / Recepción</label>
+            <input type="date" id="comFecha" required class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Almacén impreso en PDF</label>
+            <input type="text" id="comAlmacenPdf" placeholder="Ej. ALMACEN CENTRAL / ALMACEN 400" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Proveedor</label>
+            <input type="text" id="comProveedor" placeholder="Ej. CABLES DE ACERO Y ESLINGAS" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Solicitante (Sugerido o confirmado)</label>
+            <input type="text" id="comSolicitante" placeholder="Ej. Lic. Ulices Dionicio / Por aclarar" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Destino(s) Final(es) Previsto(s)</label>
+            <input type="text" id="comDestinos" placeholder="Ej. Almacén 101, Almacén 400, Balsas, Yautepec..." class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Estado General de la COM</label>
+            <select id="comEstado" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+              <option value="En almacén Cuernavaca">En almacén Cuernavaca (Recibida)</option>
+              <option value="Recibida parcial">Recibida parcial (Proveedor debe material)</option>
+              <option value="Con salida en Evidence (Por enviar)">Con salida en Evidence (Por enviar)</option>
+              <option value="Enviada parcial">Enviada parcial</option>
+              <option value="Enviada completa">Enviada completa</option>
+              <option value="Se queda en Cuernavaca">Se queda en Cuernavaca (Stock/Consumo local)</option>
+              <option value="Cancelada">Cancelada</option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Comentario Original de la COM / Observaciones</label>
+          <textarea id="comComentarios" rows="2" placeholder="Comentarios extraídos del PDF o notas adicionales..." class="w-full border border-slate-300 rounded-lg px-3 py-2"></textarea>
+        </div>
+
+        <div class="flex items-center gap-2 bg-red-50 p-2.5 rounded-lg border border-red-200">
+          <input type="checkbox" id="comRequiereAclaracion" class="w-4 h-4 text-red-600 rounded" />
+          <label for="comRequiereAclaracion" class="text-red-800 font-medium">
+            Marcar como "Pendiente de Aclaración" (Para que el Jefe de Almacén o Supervisor confirme solicitante o destino)
+          </label>
+        </div>
+
+        <!-- Materiales de la COM -->
+        <div class="border-t border-slate-200 pt-3">
+          <div class="flex items-center justify-between mb-2">
+            <label class="font-bold text-slate-800">Partidas / Materiales de la COM</label>
+            <button type="button" onclick="addComItemRow()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1 rounded font-medium">+ Agregar renglón</button>
+          </div>
+          <div id="comItemsContainer" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
+        </div>
+
+        <!-- Adjuntar PDF o Foto desde Celular -->
+        <div class="border-t border-slate-200 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Enlace PDF de la COM (o subir archivo)</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="comPdfUrl" placeholder="URL del PDF..." class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium flex items-center">
+                Subir
+                <input type="file" accept="application/pdf" class="hidden" onchange="uploadFileToCloud(event, 'comPdfUrl')" />
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">📷 Tomar Foto de Evidencia (Celular)</label>
+            <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event, 'comPhotosPreview')" class="w-full text-xs" />
+            <div id="comPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto"></div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+          <button type="button" onclick="closeModal('comModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">Guardar COM</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR / EDITAR MOVIMIENTO EVIDENCE (ENTRADA, TRASPASO O CONSUMO) -->
+  <div id="movModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-slate-200 my-8 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <h3 class="text-base font-bold text-slate-900">Registrar Movimiento de Evidence ERP y Logística</h3>
+        <button onclick="closeModal('movModal')" class="text-slate-400 hover:text-slate-700">✕</button>
+      </div>
+
+      <form id="movForm" onsubmit="saveMovimiento(event)" class="space-y-4 mt-4 text-xs">
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Folio Evidence ERP *</label>
+            <input type="text" id="movFolio" required placeholder="Ej. 19990, 20160, 19033" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-bold" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Tipo de Movimiento *</label>
+            <select id="movTipo" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+              <option value="TRASPASO">Traspaso (Ej. Cuernavaca → Almacén 101)</option>
+              <option value="CONSUMO">Salida por Consumo (Balsas, San Miguel, Yautepec, A400)</option>
+              <option value="ENTRADA">Entrada por Compra (Recepción en Evidence)</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">COM Relacionada *</label>
+            <input type="text" id="movComId" required placeholder="Ej. 3942, 4295, 4216" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-semibold" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Fecha del Movimiento</label>
+            <input type="date" id="movFecha" required class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Estatus en Evidence ERP</label>
+            <select id="movEstatusEvidence" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+              <option value="Finalizado correctamente">Finalizado correctamente</option>
+              <option value="Esperando productos">Esperando productos (Traspaso en tránsito)</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Centro Contable (Para Consumos)</label>
+            <input type="text" id="movCentroContable" placeholder="Ej. 1000000 ALMACENES / TANQUE AGUA DE SELLOS" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Destino Físico Real *</label>
+            <select id="movDestino" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold">
+              <option value="Almacén 101">Almacén 101 (A101)</option>
+              <option value="Almacén 400">Almacén 400 (A400)</option>
+              <option value="San Miguel (ASM)">San Miguel (ASM)</option>
+              <option value="Balsas">Balsas (Campamentos / Mina)</option>
+              <option value="Yautepec">Yautepec (Taller / Almacén)</option>
+              <option value="Cuernavaca Central">Permanece en Cuernavaca Central</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Estado Físico / Logístico *</label>
+            <select id="movEstadoLogistico" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold">
+              <option value="Con salida en Evidence (En piso Cuernavaca)">Con salida en Evidence (En piso Cuernavaca)</option>
+              <option value="Envío programado">Envío programado por Logística</option>
+              <option value="Preparado para carga">Preparado para carga</option>
+              <option value="Enviado físicamente (En ruta)">Enviado físicamente (En ruta)</option>
+              <option value="Entregado en destino (Confirmado WhatsApp)">Entregado en destino (Confirmado WhatsApp)</option>
+              <option value="Se queda en Cuernavaca">Se queda en Cuernavaca</option>
+              <option value="Cancelado">Movimiento Cancelado</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Fecha Tentativa de Envío</label>
+            <input type="date" id="movFechaEnvio" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Unidad / Flotilla (Opcional)</label>
+            <input type="text" id="movUnidad" placeholder="Ej. AK-54, AK-18, Camión externo" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Chofer / Transporte (Opcional)</label>
+            <input type="text" id="movChofer" placeholder="Nombre del chofer" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Capturado desde</label>
+            <input type="text" id="movCapturadoDesde" value="Cuernavaca Central" placeholder="Ej. Yautepec por cobertura" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Descripción en Evidence ERP / Comentarios</label>
+          <textarea id="movDescripcion" rows="2" placeholder="Ej. PARA AREA 400, SALIDA POR CONSUMO CORRESPONDIENTE A LA ENTRADA PARCIAL..." class="w-full border border-slate-300 rounded-lg px-3 py-2"></textarea>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 border-t border-slate-200 pt-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">PDF del Movimiento Evidence</label>
+            <div class="flex gap-1.5">
+              <input type="text" id="movPdfUrl" placeholder="URL del PDF..." class="flex-1 border border-slate-300 rounded-lg px-2.5 py-1.5" />
+              <label class="cursor-pointer bg-slate-100 hover:bg-slate-200 px-3 py-1.5 rounded-lg font-medium">
+                Subir
+                <input type="file" accept="application/pdf" class="hidden" onchange="uploadFileToCloud(event, 'movPdfUrl')" />
+              </label>
+            </div>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">📷 Foto de Carga / Entrega</label>
+            <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event, 'movPhotosPreview')" class="w-full text-xs" />
+            <div id="movPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto"></div>
+          </div>
+        </div>
+
+        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
+          <button type="button" onclick="closeModal('movModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
+          <button type="submit" class="px-5 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">Guardar Movimiento</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CAMBIAR USUARIO / ROL -->
+  <div id="userModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4 text-xs">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="text-sm font-bold text-slate-900">Identificación de Usuario Activo</h3>
+        <button onclick="closeModal('userModal')">✕</button>
+      </div>
+      <div>
+        <label class="font-semibold block mb-1">Tu Nombre</label>
+        <input type="text" id="userNameInput" value="Luis (Almacén Cuernavaca)" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+      </div>
+      <div>
+        <label class="font-semibold block mb-1">Tu Rol en ANKY</label>
+        <select id="userRoleInput" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+          <option value="Responsable Cuernavaca">Administrador / Responsable Cuernavaca</option>
+          <option value="Jefe de Almacén">Jefe de Almacén (Aclaraciones y Consulta)</option>
+          <option value="Supervisor">Supervisor (Aclaraciones y Consulta)</option>
+          <option value="Auxiliar Destino">Auxiliar de Almacén (Confirmar Recepción)</option>
+        </select>
+      </div>
+      <button onclick="saveUserIdentity()" class="w-full bg-slate-900 text-white font-semibold py-2 rounded-lg">Guardar Usuario</button>
+    </div>
+  </div>
+
+  <!-- MODAL: CONFIGURACIÓN FIREBASE Y CLOUDINARY -->
+  <div id="configModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4">
+    <div class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4 text-xs">
+      <div class="flex items-center justify-between border-b border-slate-100 pb-2">
+        <h3 class="text-sm font-bold text-slate-900">Conexión Gratuita a Firebase y Cloudinary</h3>
+        <button onclick="closeModal('configModal')">✕</button>
+      </div>
+      <p class="text-slate-500">Pega aquí los datos de tu proyecto gratuito de Firebase y Cloudinary para sincronizar en tiempo real con tus jefes.</p>
+      <div>
+        <label class="font-semibold block mb-1">Objeto JSON de Firebase (firebaseConfig)</label>
+        <textarea id="firebaseConfigInput" rows="4" placeholder='{"apiKey": "...", "projectId": "almacen-anky", ...}' class="w-full border border-slate-300 rounded-lg p-2 font-mono text-[11px]"></textarea>
+      </div>
+      <div class="grid grid-cols-2 gap-2">
+        <div>
+          <label class="font-semibold block mb-1">Cloudinary Cloud Name</label>
+          <input type="text" id="cloudinaryNameInput" placeholder="Ej. dxyz12345" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+        </div>
+        <div>
+          <label class="font-semibold block mb-1">Upload Preset (Unsigned)</label>
+          <input type="text" id="cloudinaryPresetInput" placeholder="Ej. anky_files" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+        </div>
+      </div>
+      <div class="flex justify-end gap-2 pt-2">
+        <button onclick="closeModal('configModal')" class="px-4 py-2 border border-slate-300 rounded-lg">Cerrar</button>
+        <button onclick="saveCloudConfig()" class="px-4 py-2 bg-slate-900 text-white font-semibold rounded-lg">Guardar y Conectar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- LÓGICA DE LA APLICACIÓN -->
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+    import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+    // Configurar worker de PDF.js
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+
+    // Estado global
+    let currentComFilter = 'ALL';
+    let currentMovFilter = 'ALL';
+    let currentDestinationFilter = null;
+    let tempComPhotos = [];
+    let tempMovPhotos = [];
+    let db = null;
+
+    // Datos iniciales basados en tus documentos reales de Evidence ERP para que veas tu operación real cargada
+    const INITIAL_COMS = [
+      {
+        folio: "3942",
+        fecha: "2026-10-21",
+        almacenPdf: "ALMACEN CENTRAL CUERNAVACA",
+        proveedor: "CABLES DE ACERO Y ESLINGAS",
+        solicitante: "Lic. Ulices Dionicio",
+        destinos: "Almacén 101",
+        estado: "Con salida en Evidence (Por enviar)",
+        requiereAclaracion: false,
+        comentarios: "MATERIAL PARA MONTAJE DE CANOPPY WEST AIDIT NIVEL 1160 W021 SOLICITA LIC ULICES DIONICIO",
+        pdfUrl: "",
+        fotos: [],
+        items: [
+          { codigo: "MQ-HLM-003", descripcion: "ESLINGA PLANA OJO A OJO B, 4\"X6 MTS, 3 CAPAS", unidad: "Pieza", cantCom: 4, cantRecibida: 4, cantEnviada: 4 },
+          { codigo: "MQ-HLM-004", descripcion: "ESLINGA PLANA OJO A OJO B, 3\"X4 MTS, 3 CAPAS", unidad: "Pieza", cantCom: 4, cantRecibida: 4, cantEnviada: 4 },
+          { codigo: "MQ-HLM-005", descripcion: "BANDA DE 2\" CON MATRACA 2 PULGADAS X 9 METROS GANCHO PLANO", unidad: "Pieza", cantCom: 8, cantRecibida: 8, cantEnviada: 8 }
+        ]
+      },
+      {
+        folio: "4287",
+        fecha: "2026-10-20",
+        almacenPdf: "ALMACEN 400 (Re-ruteado a Cuernavaca Central)",
+        proveedor: "PROVEEDORA DE SEGURIDAD INDUSTRIAL DEL GOLFO",
+        solicitante: "Ing. Ulises Sánchez",
+        destinos: "Almacén 101 → Almacén 400",
+        estado: "En almacén Cuernavaca",
+        requiereAclaracion: false,
+        comentarios: "SE SOLICITA EPP PARA PARO EN AREA 400 PARA EL MES DE NOVIEMBRE DEL AÑO EN CURSO_ING ULISES SANCHEZ",
+        pdfUrl: "",
+        fotos: [],
+        items: [
+          { codigo: "SE-FL-001", descripcion: "FILTRO PARA MASCARILLA 3M (MOD: 5N11) 6000", unidad: "Par", cantCom: 10, cantRecibida: 10, cantEnviada: 0 },
+          { codigo: "SE-OV-013", descripcion: "OVEROL TYVEK TALLA G", unidad: "Pieza", cantCom: 50, cantRecibida: 50, cantEnviada: 0 },
+          { codigo: "SE-OV-011", descripcion: "OVEROL TYVEK TALLA: XXL", unidad: "Pieza", cantCom: 50, cantRecibida: 50, cantEnviada: 0 }
+        ]
+      },
+      {
+        folio: "4295",
+        fecha: "2026-10-21",
+        almacenPdf: "ALMACEN CENTRAL CUERNAVACA",
+        proveedor: "ACEROS Y PERFILES",
+        solicitante: "Ing. Eliseo",
+        destinos: "Yautepec / Almacén 400",
+        estado: "Recibida parcial",
+        requiereAclaracion: false,
+        comentarios: "FABRICACION DE TANQUES AGUA DE SELLOS - ENTRADA PARCIAL 20044",
+        pdfUrl: "",
+        fotos: [],
+        items: [
+          { codigo: "AC-ACN-336", descripcion: "PLACA DE ACERO AL CARBON 3/8 2.44MT X 6.10 MT", unidad: "Pieza", cantCom: 3, cantRecibida: 3, cantEnviada: 3 },
+          { codigo: "AC-ACN-338", descripcion: "PTR 4 X 4 CAL 3/16", unidad: "Pieza", cantCom: 12, cantRecibida: 12, cantEnviada: 12 }
+        ]
+      }
+    ];
+
+    const INITIAL_MOVS = [
+      {
+        folio: "19990",
+        tipo: "TRASPASO",
+        comId: "3942",
+        fecha: "2026-10-20",
+        estatusEvidence: "Esperando productos",
+        centroContable: "N/A (Traspaso ALM-01 → ALM-003)",
+        destino: "Almacén 101",
+        estadoLogistico: "Envío programado",
+        fechaEnvio: new Date().toISOString().split('T')[0],
+        unidad: "AK-54",
+        chofer: "Por asignar",
+        capturadoDesde: "Yautepec por cobertura",
+        descripcion: "Envío del 19-10-2026 al 100% de eslingas y bandas correspondientes a COM-3942. Material para montaje de Canoppy West Aidit Nivel 1160 W021, solicita Lic. Ulices Dionicio.",
+        pdfUrl: "",
+        fotos: []
+      },
+      {
+        folio: "19936",
+        tipo: "TRASPASO",
+        comId: "4234",
+        fecha: "2026-10-19",
+        estatusEvidence: "Esperando productos",
+        centroContable: "N/A (Traspaso ALM-01 → ALM-003)",
+        destino: "Almacén 101",
+        estadoLogistico: "Con salida en Evidence (En piso Cuernavaca)",
+        fechaEnvio: "",
+        unidad: "",
+        chofer: "",
+        capturadoDesde: "Yautepec por cobertura",
+        descripcion: "Envío al 100% de herramientas correspondientes a COM-4234 (Material a reposición de herramienta fuera de servicio, solicitado por Almacén 101).",
+        pdfUrl: "",
+        fotos: []
+      },
+      {
+        folio: "20160",
+        tipo: "CONSUMO",
+        comId: "4295",
+        fecha: "2026-10-21",
+        estatusEvidence: "Finalizado correctamente",
+        centroContable: "TANQUE AGUA DE SELLOS",
+        destino: "Yautepec",
+        estadoLogistico: "Entregado en destino (Confirmado WhatsApp)",
+        fechaEnvio: "2026-10-21",
+        unidad: "Descarga directa",
+        chofer: "Proveedor / Ing. Eliseo",
+        capturadoDesde: "Cuernavaca Central",
+        descripcion: "PARA AREA 400, SALIDA POR CONSUMO CORRESPONDIENTE A LA ENTRADA PARCIAL 20044 DE LA COM-4295 (3 PZAS DE PLACA AC-ACN-336 Y 12 PZAS DE PTR AC-ACN-338 DESCARGADAS FISICAMENTE EN TALLER YAUTEPEC CON ING. ELISEO).",
+        pdfUrl: "",
+        fotos: []
+      },
+      {
+        folio: "19896",
+        tipo: "CONSUMO",
+        comId: "4216",
+        fecha: "2026-10-19",
+        estatusEvidence: "Finalizado correctamente",
+        centroContable: "1000000 ALMACENES",
+        destino: "Balsas",
+        estadoLogistico: "Enviado físicamente (En ruta)",
+        fechaEnvio: "2026-10-19",
+        unidad: "AK-18",
+        chofer: "",
+        capturadoDesde: "Yautepec por cobertura",
+        descripcion: "Material entregado para Campamentos Balsas Sur, solicitado por Lic. Alejandro González, capturado desde Yautepec por cobertura COM 4216.",
+        pdfUrl: "",
+        fotos: []
+      }
+    ];
+
+    let state = {
+      coms: JSON.parse(localStorage.getItem('anky_coms')) || INITIAL_COMS,
+      movimientos: JSON.parse(localStorage.getItem('anky_movs')) || INITIAL_MOVS,
+      logs: JSON.parse(localStorage.getItem('anky_logs')) || [
+        { fecha: new Date().toLocaleString(), usuario: "Sistema", accion: "Sistema ANKY inicializado con ejemplos reales de Evidence ERP." }
+      ],
+      user: JSON.parse(localStorage.getItem('anky_user')) || { nombre: "Luis (Almacén Cuernavaca)", rol: "Responsable Cuernavaca" }
+    };
+
+    function persistState() {
+      localStorage.setItem('anky_coms', JSON.stringify(state.coms));
+      localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
+      localStorage.setItem('anky_logs', JSON.stringify(state.logs));
+      renderAll();
+    }
+
+    function addAuditLog(accion) {
+      const entry = {
+        fecha: new Date().toLocaleString('es-MX', { dateStyle: 'short', timeStyle: 'short' }),
+        usuario: `${state.user.nombre} [${state.user.rol}]`,
+        accion
+      };
+      state.logs.unshift(entry);
+      if (db) {
+        setDoc(doc(collection(db, "logs"), Date.now().toString()), entry).catch(console.error);
+      }
+    }
+
+    // Inicializar conexión Firebase si existe configuración guardada
+    function initCloudConnection() {
+      const savedFb = localStorage.getItem('anky_fb_config');
+      if (savedFb) {
+        try {
+          const configObj = JSON.parse(savedFb);
+          const app = initializeApp(configObj);
+          db = getFirestore(app);
+          document.getElementById('cloudStatusBadge').textContent = "Conectado a Firebase";
+          document.getElementById('cloudStatusBadge').className = "text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200";
+
+          onSnapshot(collection(db, "coms"), (snap) => {
+            if (!snap.empty) {
+              state.coms = snap.docs.map(d => d.data());
+              localStorage.setItem('anky_coms', JSON.stringify(state.coms));
+              renderAll();
+            }
+          });
+          onSnapshot(collection(db, "movimientos"), (snap) => {
+            if (!snap.empty) {
+              state.movimientos = snap.docs.map(d => d.data());
+              localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
+              renderAll();
+            }
+          });
+        } catch (err) {
+          console.error("Error iniciando Firebase:", err);
+        }
+      }
+    }
+
+    // LECTOR AUTOMÁTICO DE PDFs DE EVIDENCE ERP
+    window.handlePdfAutoRead = async function(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      try {
+        const arrayBuffer = await file.arrayBuffer();
+        const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+        let fullText = "";
+
+        for (let i = 1; i <= pdf.numPages; i++) {
+          const page = await pdf.getPage(i);
+          const content = await page.getTextContent();
+          fullText += content.items.map(item => item.str).join(" ") + "\n";
+        }
+
+        // Distinguir si es una Orden de COMPRA o un Detalle de Movimiento de Evidence
+        const isCompraDoc = /COMPRA\s+Folio:\s*COM-(\d+)/i.test(fullText) || (/Comprador/i.test(fullText) && /Valor\s+Unitario/i.test(fullText));
+
+        if (isCompraDoc) {
+          const comMatch = fullText.match(/COM-(\d+)/i);
+          const folioNum = comMatch ? comMatch[1] : "";
+          const provMatch = fullText.match(/Proveedor\s+([^\n]+?)\s+RFC/i);
+          const almMatch = fullText.match(/Almac[eé]n\s+([A-Z0-9\s]+?)\s+Fecha de Compra/i);
+          const comentsMatch = fullText.match(/Comentarios:\s*(.+?)(?:Subtotal|Moneda|EVIDENCE ERP)/is);
+          const rawComment = comentsMatch ? comentsMatch[1].replace(/\s+/g, ' ').trim() : "";
+
+          // Sugerir solicitante y destino leyendo el comentario
+          let suggestedSolicitante = "Por aclarar";
+          const solMatch = rawComment.match(/(?:SOLICITA|SOLICITADO POR|ING\.?|LIC\.?)\s+([A-ZÁÉÍÓÚÑ\s]{4,35})/i);
+          if (solMatch) suggestedSolicitante = solMatch[0].trim();
+
+          let suggestedDestino = "Almacén 101";
+          if (/400/i.test(rawComment) || (almMatch && /400/i.test(almMatch[1]))) suggestedDestino = "Almacén 101 → Almacén 400";
+          else if (/BALSAS/i.test(rawComment)) suggestedDestino = "Balsas";
+          else if (/SAN MIGUEL/i.test(rawComment)) suggestedDestino = "San Miguel (ASM)";
+          else if (/YAUTEPEC/i.test(rawComment)) suggestedDestino = "Yautepec";
+
+          // Extraer partidas con código tipo XX-XXX-000
+          const itemRegex = /(\d+)\s+(Pieza|Par|Metro|Rollo|Kg|Litro|Juego|Caja)\s+([A-Z]{2,6}-[A-Z0-9]{2,5}-\d{2,4})\s+(.+?)\s+[\d,]+\.\d{2}/gi;
+          const extractedItems = [];
+          let m;
+          while ((m = itemRegex.exec(fullText)) !== null) {
+            extractedItems.push({
+              codigo: m[3].trim(),
+              descripcion: m[4].replace(/\s+/g, ' ').trim(),
+              unidad: m[2].trim(),
+              cantCom: parseFloat(m[1]),
+              cantRecibida: parseFloat(m[1]),
+              cantEnviada: 0
+            });
+          }
+
+          openComModal({
+            folio: folioNum,
+            fecha: new Date().toISOString().split('T')[0],
+            almacenPdf: almMatch ? almMatch[1].trim() : "ALMACEN CENTRAL CUERNAVACA",
+            proveedor: provMatch ? provMatch[1].trim() : "",
+            solicitante: suggestedSolicitante,
+            destinos: suggestedDestino,
+            estado: "En almacén Cuernavaca",
+            requiereAclaracion: suggestedSolicitante === "Por aclarar",
+            comentarios: rawComment,
+            items: extractedItems.length ? extractedItems : [{ codigo: "", descripcion: "", unidad: "Pieza", cantCom: 1, cantRecibida: 1, cantEnviada: 0 }]
+          });
+
+          alert(`✅ PDF de COMPRA detectado (COM-${folioNum}). Se pre-llenaron los datos y ${extractedItems.length} materiales automáticamente. Revisa y confirma.`);
+        } else {
+          // Es un Movimiento de Evidence (Entrada por Compra, Entrada por traspaso o Salida por consumo)
+          const folioMatch = fullText.match(/Folio:\s*(\d+)/i);
+          const comRefMatch = fullText.match(/COM[-\s]?(\d+)/i);
+          const descMatch = fullText.match(/Descripci[oó]n:\s*(.+?)(?:Documento generado|$)/is);
+          const rawDesc = descMatch ? descMatch[1].replace(/\s+/g, ' ').trim() : "";
+
+          let tipo = "TRASPASO";
+          if (/Salida por consumo/i.test(fullText)) tipo = "CONSUMO";
+          else if (/Entrada por Compra/i.test(fullText)) tipo = "ENTRADA";
+
+          const estatusEv = /Esperando productos/i.test(fullText) ? "Esperando productos" : "Finalizado correctamente";
+
+          let destino = "Almacén 101";
+          if (/BALSAS/i.test(rawDesc)) destino = "Balsas";
+          else if (/YAUTEPEC/i.test(rawDesc)) destino = "Yautepec";
+          else if (/400/i.test(rawDesc)) destino = "Almacén 400";
+          else if (/SAN MIGUEL/i.test(rawDesc)) destino = "San Miguel (ASM)";
+
+          const cobertura = /Yautepec/i.test(rawDesc) && /cobertura/i.test(rawDesc) ? "Yautepec por cobertura" : "Cuernavaca Central";
+
+          openMovModal({
+            folio: folioMatch ? folioMatch[1] : "",
+            tipo,
+            comId: comRefMatch ? comRefMatch[1] : "",
+            fecha: new Date().toISOString().split('T')[0],
+            estatusEvidence: estatusEv,
+            centroContable: tipo === "CONSUMO" ? (fullText.includes("1000000") ? "1000000 ALMACENES" : "Ver detalle PDF") : "N/A (Traspaso)",
+            destino,
+            estadoLogistico: "Con salida en Evidence (En piso Cuernavaca)",
+            fechaEnvio: "",
+            unidad: "",
+            chofer: "",
+            capturadoDesde: cobertura,
+            descripcion: rawDesc
+          });
+
+          alert(`✅ PDF de Movimiento Evidence detectado (Folio ${folioMatch ? folioMatch[1] : ''}). Revisa el destino físico y guarda.`);
+        }
+      } catch (err) {
+        console.error(err);
+        alert("No se pudo leer el texto automático del PDF, pero puedes llenarlo manualmente.");
+      }
+      event.target.value = "";
+    };
+
+    // COMPRESIÓN AUTOMÁTICA DE FOTOS DE CELULAR (~50 KB)
+    window.handlePhotoCapture = function(event, previewContainerId) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const img = new Image();
+        img.onload = async function() {
+          const canvas = document.createElement('canvas');
+          const maxW = 900;
+          const scale = img.width > maxW ? maxW / img.width : 1;
+          canvas.width = img.width * scale;
+          canvas.height = img.height * scale;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
+
+          if (previewContainerId === 'comPhotosPreview') {
+            tempComPhotos.push(compressedDataUrl);
+            renderPhotoPreviews('comPhotosPreview', tempComPhotos);
+          } else {
+            tempMovPhotos.push(compressedDataUrl);
+            renderPhotoPreviews('movPhotosPreview', tempMovPhotos);
+          }
+        };
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    };
+
+    function renderPhotoPreviews(containerId, photosArray) {
+      const container = document.getElementById(containerId);
+      container.innerHTML = photosArray.map((src, idx) => `
+        <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-300 shrink-0">
+          <img src="${src}" class="w-full h-full object-cover cursor-pointer" onclick="window.open('${src}')" />
+        </div>
+      `).join('');
+    }
+
+    // SUBIDA A CLOUDINARY (PARA PDFs Y ARCHIVOS)
+    window.uploadFileToCloud = async function(event, targetInputId) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const cloudName = localStorage.getItem('anky_cloud_name');
+      const preset = localStorage.getItem('anky_cloud_preset');
+
+      if (!cloudName || !preset) {
+        alert("Para subir archivos PDF a la nube gratis, primero abre el ícono de Engrane (⚙️ arriba a la derecha) y escribe tu Cloud Name y Preset de Cloudinary.");
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', preset);
+
+      try {
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${cloudName}/auto/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        if (data.secure_url) {
+          document.getElementById(targetInputId).value = data.secure_url;
+          alert("✅ Archivo subido correctamente.");
+        } else {
+          alert("Error subiendo a Cloudinary: verifica que el Upload Preset sea 'Unsigned'.");
+        }
+      } catch (e) {
+        alert("Error de red al subir el archivo.");
+      }
+    };
+
+    // RENDERIZADO GENERAL DE TODAS LAS VISTAS
+    window.renderAll = function() {
+      const q = (document.getElementById('globalSearch')?.value || '').toLowerCase().trim();
+      document.getElementById('currentUserLabel').textContent = state.user.nombre;
+
+      // Badge aclaraciones
+      const countAclarar = state.coms.filter(c => c.requiereAclaracion).length;
+      const badge = document.getElementById('badgeAclaraciones');
+      if (countAclarar > 0) {
+        badge.textContent = countAclarar;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+
+      renderDashboard(q);
+      renderComs(q);
+      renderMovimientos(q);
+      renderLogistica(q);
+      renderAclaracionesYLogs();
+      lucide.createIcons();
+    };
+
+    function renderDashboard(q) {
+      const todayStr = new Date().toISOString().split('T')[0];
+      const sinEnviar = state.movimientos.filter(m => m.tipo !== 'ENTRADA' && (m.estadoLogistico.includes('En piso') || m.estadoLogistico.includes('programado')));
+      const enviosHoy = state.movimientos.filter(m => m.fechaEnvio === todayStr && !m.estadoLogistico.includes('Entregado'));
+      const comsAclarar = state.coms.filter(c => c.requiereAclaracion);
+      const comsParciales = state.coms.filter(c => c.estado === 'Recibida parcial');
+      const enCuernavaca = state.coms.filter(c => c.estado === 'En almacén Cuernavaca' || c.estado === 'Se queda en Cuernavaca');
+
+      const kpis = [
+        { label: "COMs Registradas", val: state.coms.length, color: "text-slate-900", tab: "coms" },
+        { label: "Salidas sin Enviar Físico", val: sinEnviar.length, color: "text-amber-600", tab: "logistica" },
+        { label: "Envíos Programados Hoy", val: enviosHoy.length, color: "text-blue-600", tab: "logistica" },
+        { label: "COMs por Aclarar (Jefes)", val: comsAclarar.length, color: "text-red-600", tab: "aclaraciones" },
+        { label: "COMs Entrega Parcial", val: comsParciales.length, color: "text-purple-600", tab: "coms" },
+        { label: "En Piso Cuernavaca", val: enCuernavaca.length, color: "text-emerald-600", tab: "coms" }
+      ];
+
+      document.getElementById('dashboardKpis').innerHTML = kpis.map(k => `
+        <div onclick="switchTab('${k.tab}')" class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm cursor-pointer hover:border-slate-400 transition">
+          <p class="text-[11px] font-medium text-slate-500">${k.label}</p>
+          <p class="text-2xl font-bold mt-1 ${k.color}">${k.val}</p>
+        </div>
+      `).join('');
+
+      // Tarjetas del diagrama de flujo ANKY
+      const destinosFlujo = ["Almacén 101", "Almacén 400", "San Miguel (ASM)", "Balsas", "Yautepec", "Cuernavaca Central"];
+      document.getElementById('destinationFlowCards').innerHTML = destinosFlujo.map(dest => {
+        const movsDest = state.movimientos.filter(m => m.destino === dest);
+        const pendientes = movsDest.filter(m => !m.estadoLogistico.includes('Entregado') && !m.estadoLogistico.includes('Cancelado')).length;
+        return `
+          <div onclick="filterByDestination('${dest}')" class="p-3 rounded-lg border ${currentDestinationFilter === dest ? 'border-slate-900 bg-slate-50' : 'border-slate-200 bg-white'} hover:border-slate-400 cursor-pointer transition">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-bold text-slate-800">${dest}</span>
+              <span class="text-[11px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold">${movsDest.length} movs</span>
+            </div>
+            <p class="text-[11px] text-slate-500 mt-1">${pendientes} pendientes de entrega</p>
+          </div>
+        `;
+      }).join('');
+
+      // Lista de salidas pendientes de envío físico
+      document.getElementById('dashPendingShipments').innerHTML = sinEnviar.length ? sinEnviar.map(m => `
+        <div class="p-3.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900">Folio ${m.folio}</span>
+              <span class="px-2 py-0.5 rounded bg-slate-100 text-slate-700 font-semibold">COM-${m.comId}</span>
+              <span class="text-slate-500">→ ${m.destino}</span>
+            </div>
+            <p class="text-slate-500 mt-0.5 line-clamp-1">${m.descripcion}</p>
+          </div>
+          <div class="text-right shrink-0">
+            <span class="inline-block px-2 py-0.5 rounded-full text-[11px] font-medium bg-amber-50 text-amber-800 border border-amber-200">${m.estadoLogistico}</span>
+            <div class="mt-1">
+              <button onclick="editMov('${m.folio}')" class="text-slate-600 hover:text-slate-900 font-medium underline">Programar / Editar</button>
+            </div>
+          </div>
+        </div>
+      `).join('') : `<p class="p-4 text-xs text-slate-400">No hay salidas pendientes de envío físico.</p>`;
+
+      // Lista de COMs que requieren atención
+      const attComs = state.coms.filter(c => c.requiereAclaracion || c.estado === 'En almacén Cuernavaca' || c.estado === 'Recibida parcial');
+      document.getElementById('dashAttentionComs').innerHTML = attComs.length ? attComs.map(c => `
+        <div class="p-3.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
+          <div>
+            <div class="flex items-center gap-2">
+              <span class="font-bold text-slate-900">COM-${c.folio}</span>
+              <span class="text-slate-600 font-medium">${c.destinos}</span>
+              ${c.requiereAclaracion ? `<span class="px-2 py-0.5 rounded bg-red-100 text-red-700 font-bold text-[10px]">Por Aclarar</span>` : ''}
+            </div>
+            <p class="text-slate-500 mt-0.5 line-clamp-1">Solicita: ${c.solicitante} | ${c.comentarios}</p>
+          </div>
+          <button onclick="editCom('${c.folio}')" class="text-xs bg-slate-100 hover:bg-slate-200 px-2.5 py-1 rounded font-medium shrink-0">Abrir</button>
+        </div>
+      `).join('') : `<p class="p-4 text-xs text-slate-400">Todas las COMs están aclaradas y despachadas.</p>`;
+    }
+
+    function renderComs(q) {
+      let list = state.coms.filter(c => {
+        const text = `${c.folio} ${c.proveedor} ${c.solicitante} ${c.destinos} ${c.comentarios} ${(c.items || []).map(i => i.codigo + ' ' + i.descripcion).join(' ')}`.toLowerCase();
+        if (q && !text.includes(q)) return false;
+        if (currentComFilter === 'ACLARAR') return c.requiereAclaracion;
+        if (currentComFilter === 'PARCIAL') return c.estado === 'Recibida parcial';
+        if (currentComFilter === 'EN_CUERNAVACA') return c.estado === 'En almacén Cuernavaca';
+        if (currentComFilter === 'PERMANECE') return c.estado === 'Se queda en Cuernavaca';
+        return true;
+      });
+
+      document.getElementById('comsListContainer').innerHTML = list.length ? list.map(c => {
+        const relMovs = state.movimientos.filter(m => m.comId === c.folio);
+        return `
+          <div class="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <div class="flex flex-wrap items-center gap-2">
+                  <span class="text-base font-bold text-slate-900">COM-${c.folio}</span>
+                  <span class="text-xs px-2.5 py-0.5 rounded-full font-medium bg-slate-100 text-slate-800">${c.estado}</span>
+                  ${c.requiereAclaracion ? `<span class="text-xs px-2.5 py-0.5 rounded-full font-bold bg-red-100 text-red-700">⚠️ Requiere Aclaración</span>` : ''}
+                  <span class="text-xs text-slate-400">Fecha: ${c.fecha}</span>
+                </div>
+                <p class="text-xs text-slate-600 mt-1">
+                  <strong>Proveedor:</strong> ${c.proveedor || 'N/A'} |
+                  <strong>Solicitante:</strong> ${c.solicitante} |
+                  <strong>Destino(s):</strong> <span class="text-slate-900 font-semibold">${c.destinos}</span>
+                  <span class="text-slate-400">(Almacén en PDF: ${c.almacenPdf})</span>
+                </p>
+              </div>
+              <div class="flex items-center gap-2">
+                ${c.pdfUrl ? `<a href="${c.pdfUrl}" target="_blank" class="text-xs bg-blue-50 text-blue-700 px-2.5 py-1 rounded-lg font-medium">📄 Ver PDF</a>` : ''}
+                <button onclick="openMovModal({comId: '${c.folio}', destino: '${c.destinos.split(',')[0].trim()}'})" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-lg font-medium">+ ligar Movimiento</button>
+                <button onclick="editCom('${c.folio}')" class="text-xs bg-slate-900 text-white px-3 py-1 rounded-lg font-medium">Editar / Evidencia</button>
+              </div>
+            </div>
+
+            <div class="bg-slate-50 p-2.5 rounded-lg text-xs text-slate-700 border border-slate-100">
+              <strong>Comentario COM / Aclaraciones:</strong> ${c.comentarios || 'Sin comentarios'}
+            </div>
+
+            <!-- Tabla de materiales de la COM -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-xs text-left">
+                <thead>
+                  <tr class="text-slate-400 border-b border-slate-100">
+                    <th class="py-1">Código</th>
+                    <th class="py-1">Descripción</th>
+                    <th class="py-1">Unidad</th>
+                    <th class="py-1">Pedido COM</th>
+                    <th class="py-1">Recibido Cuer.</th>
+                    <th class="py-1">Con Salida</th>
+                    <th class="py-1">En Cuernavaca</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  ${(c.items || []).map(it => {
+                    const enCuer = (parseFloat(it.cantRecibida) || 0) - (parseFloat(it.cantEnviada) || 0);
+                    return `
+                      <tr>
+                        <td class="py-1.5 font-mono font-semibold text-slate-800">${it.codigo}</td>
+                        <td class="py-1.5 text-slate-700">${it.descripcion}</td>
+                        <td class="py-1.5 text-slate-500">${it.unidad}</td>
+                        <td class="py-1.5 font-medium">${it.cantCom}</td>
+                        <td class="py-1.5 text-emerald-700 font-semibold">${it.cantRecibida}</td>
+                        <td class="py-1.5 text-blue-700 font-semibold">${it.cantEnviada}</td>
+                        <td class="py-1.5 font-bold ${enCuer > 0 ? 'text-amber-700' : 'text-slate-400'}">${enCuer}</td>
+                      </tr>
+                    `;
+                  }).join('')}
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Movimientos de Evidence ligados a esta COM -->
+            <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div class="flex flex-wrap items-center gap-1.5">
+                <span class="text-slate-500 font-medium">Movimientos Evidence asociados (${relMovs.length}):</span>
+                ${relMovs.map(m => `
+                  <span onclick="editMov('${m.folio}')" class="cursor-pointer px-2 py-0.5 rounded bg-slate-100 hover:bg-slate-200 text-slate-800 font-medium">
+                    ${m.tipo} #${m.folio} → ${m.destino} (${m.estadoLogistico})
+                  </span>
+                `).join('')}
+              </div>
+              ${(c.fotos && c.fotos.length) ? `<span class="text-emerald-700 font-medium">📷 ${c.fotos.length} foto(s) adjuntas</span>` : ''}
+            </div>
+          </div>
+        `;
+      }).join('') : `<p class="text-xs text-slate-400 bg-white p-6 rounded-xl border border-slate-200">No se encontraron COMs con ese filtro.</p>`;
+    }
+
+    function renderMovimientos(q) {
+      let list = state.movimientos.filter(m => {
+        const text = `${m.folio} ${m.comId} ${m.tipo} ${m.destino} ${m.centroContable} ${m.descripcion} ${m.unidad}`.toLowerCase();
+        if (q && !text.includes(q)) return false;
+        if (currentMovFilter !== 'ALL' && m.tipo !== currentMovFilter) return false;
+        if (currentDestinationFilter && m.destino !== currentDestinationFilter) return false;
+        return true;
+      });
+
+      document.getElementById('movimientosTableBody').innerHTML = list.map(m => `
+        <tr class="hover:bg-slate-50 text-xs">
+          <td class="py-3 px-4 font-bold text-slate-900">
+            #${m.folio}
+            <div class="text-[10px] text-slate-400 font-normal">${m.fecha} | ${m.capturadoDesde}</div>
+          </td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded font-semibold ${m.tipo === 'TRASPASO' ? 'bg-blue-50 text-blue-700' : m.tipo === 'CONSUMO' ? 'bg-purple-50 text-purple-700' : 'bg-emerald-50 text-emerald-700'}">${m.tipo}</span>
+            <div class="text-[11px] text-slate-500 mt-0.5">${m.centroContable || ''}</div>
+          </td>
+          <td class="py-3 px-4 font-bold text-slate-800">COM-${m.comId}</td>
+          <td class="py-3 px-4 font-semibold text-slate-900">${m.destino}</td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded-full text-[11px] ${m.estatusEvidence.includes('Esperando') ? 'bg-amber-50 text-amber-700' : 'bg-slate-100 text-slate-700'}">${m.estatusEvidence}</span>
+          </td>
+          <td class="py-3 px-4">
+            <span class="px-2 py-0.5 rounded-full font-semibold text-[11px] ${
+              m.estadoLogistico.includes('Entregado') ? 'bg-emerald-50 text-emerald-700' :
+              m.estadoLogistico.includes('En piso') ? 'bg-amber-50 text-amber-800' :
+              m.estadoLogistico.includes('Cancelado') ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-800'
+            }">${m.estadoLogistico}</span>
+            ${m.unidad ? `<div class="text-[11px] text-slate-500 mt-0.5">🚛 Unidad: ${m.unidad}</div>` : ''}
+          </td>
+          <td class="py-3 px-4">
+            <input type="date" value="${m.fechaEnvio || ''}" onchange="quickUpdateDate('${m.folio}', this.value)" class="border border-slate-200 rounded px-2 py-1 text-xs" />
+          </td>
+          <td class="py-3 px-4 text-right space-x-1">
+            ${m.pdfUrl ? `<a href="${m.pdfUrl}" target="_blank" class="text-blue-600 hover:underline">PDF</a>` : ''}
+            <button onclick="editMov('${m.folio}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1 rounded font-medium">Editar</button>
+          </td>
+        </tr>
+      `).join('');
+    }
+
+    function renderLogistica(q) {
+      const cols = [
+        { title: "1. En Piso Cuernavaca (Con Salida Evidence, por programar)", filter: m => m.estadoLogistico.includes('En piso') || m.estadoLogistico.includes('Preparado') },
+        { title: "2. Envío Programado / En Tránsito", filter: m => m.estadoLogistico.includes('programado') || m.estadoLogistico.includes('En ruta') },
+        { title: "3. Entregado en Destino (Confirmado por WhatsApp)", filter: m => m.estadoLogistico.includes('Entregado') }
+      ];
+
+      document.getElementById('logisticsColumns').innerHTML = cols.map(col => {
+        const items = state.movimientos.filter(m => m.tipo !== 'ENTRADA' && col.filter(m));
+        return `
+          <div class="bg-white rounded-xl border border-slate-200 shadow-sm flex flex-col">
+            <div class="p-3.5 border-b border-slate-100 font-bold text-xs text-slate-800 flex justify-between">
+              <span>${col.title}</span>
+              <span class="bg-slate-100 px-2 py-0.5 rounded-full">${items.length}</span>
+            </div>
+            <div class="p-3 space-y-2.5 flex-1">
+              ${items.map(m => `
+                <div class="p-3 rounded-lg border border-slate-200 hover:border-slate-300 space-y-2 text-xs">
+                  <div class="flex items-center justify-between">
+                    <span class="font-bold text-slate-900">${m.tipo} #${m.folio} (COM-${m.comId})</span>
+                    <span class="font-semibold text-blue-700">${m.destino}</span>
+                  </div>
+                  <p class="text-slate-500 text-[11px] line-clamp-2">${m.descripcion}</p>
+                  <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
+                    <div>
+                      <label class="text-[10px] text-slate-400 block">Fecha tentativa envío:</label>
+                      <input type="date" value="${m.fechaEnvio || ''}" onchange="quickUpdateDate('${m.folio}', this.value)" class="border border-slate-200 rounded px-1.5 py-0.5 text-[11px]" />
+                    </div>
+                    <div class="flex gap-1">
+                      ${!m.estadoLogistico.includes('Entregado') ? `
+                        <button onclick="quickMarkDelivered('${m.folio}')" class="bg-emerald-50 hover:bg-emerald-100 text-emerald-700 px-2 py-1 rounded font-medium text-[11px]">✓ Confirmar Entrega</button>
+                      ` : ''}
+                      <button onclick="editMov('${m.folio}')" class="bg-slate-100 px-2 py-1 rounded text-[11px]">Detalles</button>
+                    </div>
+                  </div>
+                </div>
+              `).join('')}
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderAclaracionesYLogs() {
+      const porAclarar = state.coms.filter(c => c.requiereAclaracion);
+      document.getElementById('clarificationsList').innerHTML = porAclarar.length ? porAclarar.map(c => `
+        <div class="p-3.5 rounded-xl border border-red-200 bg-red-50/30 space-y-2 text-xs">
+          <div class="flex items-center justify-between">
+            <span class="font-bold text-sm text-slate-900">COM-${c.folio} (${c.proveedor})</span>
+            <span class="text-slate-500">${c.fecha}</span>
+          </div>
+          <p class="text-slate-700"><strong>Comentario en PDF:</strong> ${c.comentarios}</p>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+            <input type="text" id="aclSol_${c.folio}" value="${c.solicitante}" placeholder="Confirmar Solicitante..." class="border border-slate-300 rounded px-2.5 py-1.5 bg-white" />
+            <input type="text" id="aclDest_${c.folio}" value="${c.destinos}" placeholder="Confirmar Destino (Ej. A400, Balsas)..." class="border border-slate-300 rounded px-2.5 py-1.5 bg-white" />
+          </div>
+          <div class="flex gap-2">
+            <input type="text" id="aclNota_${c.folio}" placeholder="Escribir instrucción o aclaración del Jefe..." class="flex-1 border border-slate-300 rounded px-2.5 py-1.5 bg-white" />
+            <button onclick="resolveClarification('${c.folio}')" class="bg-slate-900 text-white px-3 py-1.5 rounded-lg font-semibold shrink-0">Guardar Aclaración</button>
+          </div>
+        </div>
+      `).join('') : `<p class="text-xs text-slate-400">No hay COMs pendientes de aclaración en este momento.</p>`;
+
+      document.getElementById('auditLogList').innerHTML = state.logs.map(l => `
+        <div class="py-1.5 border-b border-slate-100 flex justify-between gap-2">
+          <div>
+            <span class="font-semibold text-slate-800">${l.usuario}:</span>
+            <span class="text-slate-600">${l.accion}</span>
+          </div>
+          <span class="text-slate-400 shrink-0 text-[10px]">${l.fecha}</span>
+        </div>
+      `).join('');
+    }
+
+    // FUNCIONES INTERACTIVAS Y DE GUARDADO
+    window.switchTab = function(tabName) {
+      ['dashboard', 'coms', 'movimientos', 'logistica', 'aclaraciones'].forEach(t => {
+        document.getElementById(`view-${t}`).classList.add('hidden');
+        document.getElementById(`tab-${t}`)?.classList.remove('tab-active');
+      });
+      document.getElementById(`view-${tabName}`).classList.remove('hidden');
+      document.getElementById(`tab-${tabName}`)?.classList.add('tab-active');
+    };
+
+    window.setComFilter = function(f) { currentComFilter = f; renderAll(); };
+    window.setMovFilter = function(f) { currentMovFilter = f; currentDestinationFilter = null; renderAll(); };
+    window.filterByDestination = function(dest) {
+      currentDestinationFilter = currentDestinationFilter === dest ? null : dest;
+      switchTab('movimientos');
+      renderAll();
+    };
+    window.syncMobileSearch = function(val) {
+      document.getElementById('globalSearch').value = val;
+      renderAll();
+    };
+
+    window.openModal = function(id) { document.getElementById(id).classList.remove('hidden'); };
+    window.closeModal = function(id) { document.getElementById(id).classList.add('hidden'); };
+
+    window.addComItemRow = function(item = { codigo: '', descripcion: '', unidad: 'Pieza', cantCom: 1, cantRecibida: 1, cantEnviada: 0 }) {
+      const container = document.getElementById('comItemsContainer');
+      const div = document.createElement('div');
+      div.className = "grid grid-cols-12 gap-1.5 items-center com-item-row";
+      div.innerHTML = `
+        <input type="text" placeholder="Código" value="${item.codigo}" class="col-span-2 border border-slate-300 rounded px-2 py-1 font-mono item-codigo" />
+        <input type="text" placeholder="Descripción" value="${item.descripcion}" class="col-span-4 border border-slate-300 rounded px-2 py-1 item-desc" />
+        <input type="text" placeholder="Unidad" value="${item.unidad}" class="col-span-2 border border-slate-300 rounded px-2 py-1 item-unidad" />
+        <input type="number" step="any" title="Cant. COM" value="${item.cantCom}" class="col-span-1 border border-slate-300 rounded px-1.5 py-1 item-com" />
+        <input type="number" step="any" title="Cant. Recibida" value="${item.cantRecibida}" class="col-span-1 border border-emerald-300 rounded px-1.5 py-1 item-rec" />
+        <input type="number" step="any" title="Cant. Enviada" value="${item.cantEnviada}" class="col-span-1 border border-blue-300 rounded px-1.5 py-1 item-env" />
+        <button type="button" onclick="this.parentElement.remove()" class="col-span-1 text-red-500 font-bold text-center">✕</button>
+      `;
+      container.appendChild(div);
+    };
+
+    window.openComModal = function(prefill = null) {
+      document.getElementById('comForm').reset();
+      document.getElementById('comItemsContainer').innerHTML = '';
+      tempComPhotos = prefill?.fotos || [];
+      renderPhotoPreviews('comPhotosPreview', tempComPhotos);
+
+      if (prefill) {
+        document.getElementById('comFolio').value = prefill.folio || '';
+        document.getElementById('comFecha').value = prefill.fecha || new Date().toISOString().split('T')[0];
+        document.getElementById('comAlmacenPdf').value = prefill.almacenPdf || 'ALMACEN CENTRAL CUERNAVACA';
+        document.getElementById('comProveedor').value = prefill.proveedor || '';
+        document.getElementById('comSolicitante').value = prefill.solicitante || '';
+        document.getElementById('comDestinos').value = prefill.destinos || '';
+        document.getElementById('comEstado').value = prefill.estado || 'En almacén Cuernavaca';
+        document.getElementById('comComentarios').value = prefill.comentarios || '';
+        document.getElementById('comRequiereAclaracion').checked = !!prefill.requiereAclaracion;
+        document.getElementById('comPdfUrl').value = prefill.pdfUrl || '';
+        (prefill.items || []).forEach(it => addComItemRow(it));
+      } else {
+        document.getElementById('comFecha').value = new Date().toISOString().split('T')[0];
+        addComItemRow();
+      }
+      openModal('comModal');
+    };
+
+    window.editCom = function(folio) {
+      const c = state.coms.find(x => x.folio === folio);
+      if (c) openComModal(c);
+    };
+
+    window.saveCom = async function(e) {
+      e.preventDefault();
+      const folio = document.getElementById('comFolio').value.replace(/[^0-9]/g, '').trim() || document.getElementById('comFolio').value.trim();
+      const rows = Array.from(document.querySelectorAll('.com-item-row'));
+      const items = rows.map(r => ({
+        codigo: r.querySelector('.item-codigo').value.trim(),
+        descripcion: r.querySelector('.item-desc').value.trim(),
+        unidad: r.querySelector('.item-unidad').value.trim(),
+        cantCom: parseFloat(r.querySelector('.item-com').value) || 0,
+        cantRecibida: parseFloat(r.querySelector('.item-rec').value) || 0,
+        cantEnviada: parseFloat(r.querySelector('.item-env').value) || 0
+      })).filter(i => i.codigo || i.descripcion);
+
+      const newCom = {
+        folio,
+        fecha: document.getElementById('comFecha').value,
+        almacenPdf: document.getElementById('comAlmacenPdf').value.trim(),
+        proveedor: document.getElementById('comProveedor').value.trim(),
+        solicitante: document.getElementById('comSolicitante').value.trim() || 'Por aclarar',
+        destinos: document.getElementById('comDestinos').value.trim() || 'Por definir',
+        estado: document.getElementById('comEstado').value,
+        comentarios: document.getElementById('comComentarios').value.trim(),
+        requiereAclaracion: document.getElementById('comRequiereAclaracion').checked,
+        pdfUrl: document.getElementById('comPdfUrl').value.trim(),
+        fotos: tempComPhotos,
+        items
+      };
+
+      const idx = state.coms.findIndex(c => c.folio === folio);
+      if (idx >= 0) state.coms[idx] = newCom;
+      else state.coms.unshift(newCom);
+
+      if (db) {
+        await setDoc(doc(db, "coms", folio), newCom).catch(console.error);
+      }
+
+      addAuditLog(`Guardó/actualizó COM-${folio} (Estado: ${newCom.estado}, Destino: ${newCom.destinos})`);
+      persistState();
+      closeModal('comModal');
+    };
+
+    window.openMovModal = function(prefill = null) {
+      document.getElementById('movForm').reset();
+      tempMovPhotos = prefill?.fotos || [];
+      renderPhotoPreviews('movPhotosPreview', tempMovPhotos);
+
+      document.getElementById('movFolio').value = prefill?.folio || '';
+      document.getElementById('movTipo').value = prefill?.tipo || 'TRASPASO';
+      document.getElementById('movComId').value = prefill?.comId || '';
+      document.getElementById('movFecha').value = prefill?.fecha || new Date().toISOString().split('T')[0];
+      document.getElementById('movEstatusEvidence').value = prefill?.estatusEvidence || 'Finalizado correctamente';
+      document.getElementById('movCentroContable').value = prefill?.centroContable || '';
+      document.getElementById('movDestino').value = prefill?.destino || 'Almacén 101';
+      document.getElementById('movEstadoLogistico').value = prefill?.estadoLogistico || 'Con salida en Evidence (En piso Cuernavaca)';
+      document.getElementById('movFechaEnvio').value = prefill?.fechaEnvio || '';
+      document.getElementById('movUnidad').value = prefill?.unidad || '';
+      document.getElementById('movChofer').value = prefill?.chofer || '';
+      document.getElementById('movCapturadoDesde').value = prefill?.capturadoDesde || 'Cuernavaca Central';
+      document.getElementById('movDescripcion').value = prefill?.descripcion || '';
+      document.getElementById('movPdfUrl').value = prefill?.pdfUrl || '';
+      openModal('movModal');
+    };
+
+    window.editMov = function(folio) {
+      const m = state.movimientos.find(x => x.folio === folio);
+      if (m) openMovModal(m);
+    };
+
+    window.saveMovimiento = async function(e) {
+      e.preventDefault();
+      const folio = document.getElementById('movFolio').value.trim();
+      const newMov = {
+        folio,
+        tipo: document.getElementById('movTipo').value,
+        comId: document.getElementById('movComId').value.replace(/[^0-9]/g, '').trim() || document.getElementById('movComId').value.trim(),
+        fecha: document.getElementById('movFecha').value,
+        estatusEvidence: document.getElementById('movEstatusEvidence').value,
+        centroContable: document.getElementById('movCentroContable').value.trim(),
+        destino: document.getElementById('movDestino').value,
+        estadoLogistico: document.getElementById('movEstadoLogistico').value,
+        fechaEnvio: document.getElementById('movFechaEnvio').value,
+        unidad: document.getElementById('movUnidad').value.trim(),
+        chofer: document.getElementById('movChofer').value.trim(),
+        capturadoDesde: document.getElementById('movCapturadoDesde').value.trim(),
+        descripcion: document.getElementById('movDescripcion').value.trim(),
+        pdfUrl: document.getElementById('movPdfUrl').value.trim(),
+        fotos: tempMovPhotos
+      };
+
+      const idx = state.movimientos.findIndex(m => m.folio === folio);
+      if (idx >= 0) state.movimientos[idx] = newMov;
+      else state.movimientos.unshift(newMov);
+
+      if (db) {
+        await setDoc(doc(db, "movimientos", folio), newMov).catch(console.error);
+      }
+
+      addAuditLog(`Registró/actualizó ${newMov.tipo} #${folio} de COM-${newMov.comId} hacia ${newMov.destino} (${newMov.estadoLogistico})`);
+      persistState();
+      closeModal('movModal');
+    };
+
+    window.quickUpdateDate = async function(folio, newDate) {
+      const m = state.movimientos.find(x => x.folio === folio);
+      if (!m) return;
+      const oldDate = m.fechaEnvio || 'Sin fecha';
+      m.fechaEnvio = newDate;
+      if (m.estadoLogistico.includes('En piso') && newDate) {
+        m.estadoLogistico = 'Envío programado';
+      }
+      if (db) await setDoc(doc(db, "movimientos", folio), m).catch(console.error);
+      addAuditLog(`Modificó fecha tentativa de envío del Mov. #${folio} (COM-${m.comId}) de ${oldDate} a ${newDate}`);
+      persistState();
+    };
+
+    window.quickMarkDelivered = async function(folio) {
+      const m = state.movimientos.find(x => x.folio === folio);
+      if (!m) return;
+      m.estadoLogistico = 'Entregado en destino (Confirmado WhatsApp)';
+      if (db) await setDoc(doc(db, "movimientos", folio), m).catch(console.error);
+      addAuditLog(`Confirmó entrega en destino (${m.destino}) del Mov. #${folio} (COM-${m.comId})`);
+      persistState();
+    };
+
+    window.resolveClarification = async function(folio) {
+      const c = state.coms.find(x => x.folio === folio);
+      if (!c) return;
+      const sol = document.getElementById(`aclSol_${folio}`).value.trim();
+      const dest = document.getElementById(`aclDest_${folio}`).value.trim();
+      const nota = document.getElementById(`aclNota_${folio}`).value.trim();
+
+      c.solicitante = sol || c.solicitante;
+      c.destinos = dest || c.destinos;
+      if (nota) c.comentarios += ` | [Aclaración ${state.user.nombre}: ${nota}]`;
+      c.requiereAclaracion = false;
+
+      if (db) await setDoc(doc(db, "coms", folio), c).catch(console.error);
+      addAuditLog(`Aclaró COM-${folio}: Solicitante=${c.solicitante}, Destino=${c.destinos}. Nota: ${nota}`);
+      persistState();
+    };
+
+    window.copyWhatsAppSummary = function() {
+      const dateFilter = document.getElementById('whatsappDateFilter').value;
+      const list = state.movimientos.filter(m => m.tipo !== 'ENTRADA' && (!dateFilter || m.fechaEnvio === dateFilter));
+      if (!list.length) {
+        alert("No hay movimientos programados para la fecha seleccionada.");
+        return;
+      }
+      let text = `*📦 REPORTE DE ENVÍOS ALMACÉN CENTRAL CUERNAVACA (ANKY)*\nFecha: ${dateFilter || 'General'}\n\n`;
+      list.forEach(m => {
+        text += `🔹 *${m.tipo} Folio #${m.folio}* (COM-${m.comId})\n`;
+        text += `   📍 Destino: *${m.destino}*\n`;
+        text += `   🚚 Estado: ${m.estadoLogistico} ${m.unidad ? `| Unidad: ${m.unidad}` : ''}\n`;
+        text += `   📝 Detalle: ${m.descripcion}\n`;
+        if (m.pdfUrl) text += `   📄 PDF: ${m.pdfUrl}\n`;
+        text += `\n`;
+      });
+      navigator.clipboard.writeText(text);
+      alert("✅ Resumen copiado al portapapeles. Ya puedes pegarlo directamente en el grupo de WhatsApp.");
+    };
+
+    window.saveUserIdentity = function() {
+      state.user = {
+        nombre: document.getElementById('userNameInput').value.trim() || 'Usuario',
+        rol: document.getElementById('userRoleInput').value
+      };
+      localStorage.setItem('anky_user', JSON.stringify(state.user));
+      closeModal('userModal');
+      renderAll();
+    };
+
+    window.saveCloudConfig = function() {
+      const fbText = document.getElementById('firebaseConfigInput').value.trim();
+      const cName = document.getElementById('cloudinaryNameInput').value.trim();
+      const cPreset = document.getElementById('cloudinaryPresetInput').value.trim();
+
+      if (fbText) localStorage.setItem('anky_fb_config', fbText);
+      if (cName) localStorage.setItem('anky_cloud_name', cName);
+      if (cPreset) localStorage.setItem('anky_cloud_preset', cPreset);
+
+      initCloudConnection();
+      closeModal('configModal');
+      alert("✅ Configuración guardada.");
+    };
+
+    // Inicializar al abrir
+    initCloudConnection();
+    renderAll();
+  </script>
+</body>
+</html>
+
+

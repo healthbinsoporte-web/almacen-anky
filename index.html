@@ -14,6 +14,8 @@
     body { font-family: 'Inter', system-ui, -apple-system, sans-serif; background-color: #f8fafc; color: #0f172a; }
     .tab-active { border-bottom: 2px solid #0f172a; color: #0f172a; font-weight: 600; }
     .modal-bg { background-color: rgba(15, 23, 42, 0.55); backdrop-filter: blur(2px); }
+    th.sortable { cursor: pointer; user-select: none; }
+    th.sortable:hover { background-color: #f1f5f9; color: #0f172a; }
   </style>
 </head>
 <body class="min-h-screen flex flex-col pb-16 md:pb-0">
@@ -27,7 +29,7 @@
         </div>
         <div>
           <h1 class="text-base font-bold text-slate-900 leading-tight">ANKY Almacén Central</h1>
-          <p class="text-xs text-slate-500">Cuernavaca → Minas y Almacenes</p>
+          <p class="text-xs text-slate-500">Cuernavaca → Minas, Talleres y Resguardo Físico</p>
         </div>
       </div>
 
@@ -35,7 +37,7 @@
       <div class="hidden md:flex items-center flex-1 max-w-md mx-6">
         <div class="relative w-full">
           <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-          <input id="globalSearch" type="text" oninput="renderAll()" placeholder="Buscar COM (ej. 3942), folio (19990), material, destino o solicitante..." 
+          <input id="globalSearch" type="text" oninput="renderAll()" placeholder="Buscar COM, folio, herramienta, ubicación, responsable..." 
             class="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-100 border border-transparent rounded-lg focus:bg-white focus:border-slate-300 focus:outline-none transition" />
         </div>
       </div>
@@ -57,25 +59,29 @@
 
     <!-- Buscador móvil -->
     <div class="md:hidden px-4 pb-3">
-      <input id="globalSearchMobile" type="text" oninput="syncMobileSearch(this.value)" placeholder="Buscar COM, folio, material, destino..." 
+      <input id="globalSearchMobile" type="text" oninput="syncMobileSearch(this.value)" placeholder="Buscar COM, folio, material, inventario..." 
         class="w-full px-3 py-1.5 text-sm bg-slate-100 border border-slate-200 rounded-lg focus:bg-white focus:outline-none" />
     </div>
 
     <!-- Navegación Desktop -->
     <nav class="hidden md:flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 text-sm text-slate-500 overflow-x-auto">
-      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="py-3 tab-active flex items-center gap-2">
+      <button onclick="switchTab('dashboard')" id="tab-dashboard" class="py-3 tab-active flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
       </button>
-      <button onclick="switchTab('coms')" id="tab-coms" class="py-3 hover:text-slate-900 flex items-center gap-2">
+      <button onclick="switchTab('coms')" id="tab-coms" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="file-text" class="w-4 h-4"></i> Gestión de COMs
       </button>
-      <button onclick="switchTab('movimientos')" id="tab-movimientos" class="py-3 hover:text-slate-900 flex items-center gap-2">
+      <button onclick="switchTab('movimientos')" id="tab-movimientos" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="arrow-left-right" class="w-4 h-4"></i> Entradas y Salidas Evidence
       </button>
-      <button onclick="switchTab('logistica')" id="tab-logistica" class="py-3 hover:text-slate-900 flex items-center gap-2">
+      <button onclick="switchTab('inventario')" id="tab-inventario" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="boxes" class="w-4 h-4"></i> Inventario Físico (Piso/Resguardo)
+        <span id="badgeInventario" class="bg-slate-100 text-slate-700 text-xs px-1.5 py-0.2 rounded-full font-bold">0</span>
+      </button>
+      <button onclick="switchTab('logistica')" id="tab-logistica" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="truck" class="w-4 h-4"></i> Calendario Logística
       </button>
-      <button onclick="switchTab('aclaraciones')" id="tab-aclaraciones" class="py-3 hover:text-slate-900 flex items-center gap-2">
+      <button onclick="switchTab('aclaraciones')" id="tab-aclaraciones" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="help-circle" class="w-4 h-4"></i> Aclaraciones Jefes y Bitácora
         <span id="badgeAclaraciones" class="hidden bg-red-100 text-red-700 text-xs px-1.5 py-0.2 rounded-full font-bold">0</span>
       </button>
@@ -88,8 +94,8 @@
     <!-- BARRA DE ACCIONES RÁPIDAS -->
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
       <div>
-        <h2 class="text-sm font-semibold text-slate-900">Captura Rápida e Inteligente (Evidence ERP)</h2>
-        <p class="text-xs text-slate-500">Sube un PDF de Compra, Entrada, Traspaso o Salida por Consumo y el sistema extraerá los datos automáticamente.</p>
+        <h2 class="text-sm font-semibold text-slate-900">Captura Rápida e Inteligente (Evidence ERP + Control de Piso)</h2>
+        <p class="text-xs text-slate-500">Sube un PDF de Evidence para lectura automática o registra inventario físico en resguardo, taller o reparación.</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <label class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-2 shadow-sm transition">
@@ -103,6 +109,9 @@
         <button onclick="openMovModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5">
           <i data-lucide="plus-circle" class="w-4 h-4"></i> Nuevo Movimiento
         </button>
+        <button onclick="openInvModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
+          <i data-lucide="package-plus" class="w-4 h-4"></i> + Inventario Físico
+        </button>
       </div>
     </div>
 
@@ -115,7 +124,7 @@
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Estado por Destino (Flujo Operativo ANKY)</h3>
-          <span class="text-xs text-slate-400">Clic en un destino para filtrar</span>
+          <span class="text-xs text-slate-400">Clic en un destino para filtrar movimientos</span>
         </div>
         <div class="grid grid-cols-2 md:grid-cols-6 gap-2.5" id="destinationFlowCards"></div>
       </div>
@@ -161,25 +170,96 @@
       <div id="comsListContainer" class="space-y-3"></div>
     </section>
 
-    <!-- VISTA 3: MOVIMIENTOS EVIDENCE (ENTRADAS, TRASPASOS Y CONSUMOS) -->
+    <!-- VISTA 3: MOVIMIENTOS EVIDENCE (CON FILTROS Y ORDENAMIENTO MULTICRITERIO) -->
     <section id="view-movimientos" class="hidden space-y-4">
-      <div class="flex flex-wrap gap-1.5">
-        <button onclick="setMovFilter('ALL')" class="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium">Todos</button>
-        <button onclick="setMovFilter('ENTRADA')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700">Entradas por Compra</button>
-        <button onclick="setMovFilter('TRASPASO')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700">Traspasos (A101 / A400)</button>
-        <button onclick="setMovFilter('CONSUMO')" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700">Salidas por Consumo (Minas/Talleres)</button>
+      <!-- Panel de Filtros y Ordenamiento -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-2">
+          <div class="flex flex-wrap gap-1.5" id="movTypePills">
+            <button onclick="setMovFilter('ALL')" id="pill-mov-ALL" class="text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium">Todos los Tipos</button>
+            <button onclick="setMovFilter('ENTRADA')" id="pill-mov-ENTRADA" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Entradas por Compra</button>
+            <button onclick="setMovFilter('TRASPASO')" id="pill-mov-TRASPASO" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Traspasos (A101 / A400)</button>
+            <button onclick="setMovFilter('CONSUMO')" id="pill-mov-CONSUMO" class="text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50">Salidas por Consumo</button>
+          </div>
+          <div class="flex items-center gap-2">
+            <span id="movCountBadge" class="text-xs text-slate-500 font-medium">0 registros</span>
+            <button onclick="resetMovFilters()" class="text-xs text-slate-600 hover:text-slate-900 underline">Limpiar filtros</button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-2.5 pt-2 border-t border-slate-100 text-xs">
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Filtrar por Destino</label>
+            <select id="filterMovDestino" onchange="onDropdownDestinoChange(this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+              <option value="ALL">Todos los destinos</option>
+              <option value="Almacén 101">Almacén 101 (A101)</option>
+              <option value="Almacén 400">Almacén 400 (A400)</option>
+              <option value="San Miguel (ASM)">San Miguel (ASM)</option>
+              <option value="Balsas">Balsas</option>
+              <option value="Yautepec">Yautepec</option>
+              <option value="Cuernavaca Central">Cuernavaca Central</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Estatus en Evidence ERP</label>
+            <select id="filterMovEstatusEv" onchange="renderAll()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+              <option value="ALL">Todos los estatus Evidence</option>
+              <option value="Finalizado correctamente">Finalizado correctamente</option>
+              <option value="Esperando productos">Esperando productos</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Estado Físico / Logístico</label>
+            <select id="filterMovEstadoLog" onchange="renderAll()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+              <option value="ALL">Todos los estados físicos</option>
+              <option value="Con salida en Evidence (En piso Cuernavaca)">En piso Cuernavaca (Sin enviar)</option>
+              <option value="Envío programado">Envío programado</option>
+              <option value="Preparado para carga">Preparado para carga</option>
+              <option value="Enviado físicamente (En ruta)">Enviado físicamente (En ruta)</option>
+              <option value="Entregado en destino (Confirmado WhatsApp)">Entregado en destino</option>
+              <option value="Se queda en Cuernavaca">Se queda en Cuernavaca</option>
+              <option value="Cancelado">Cancelado</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Desde / Hasta Fecha Mov.</label>
+            <div class="flex gap-1">
+              <input type="date" id="filterMovDateFrom" onchange="renderAll()" title="Desde fecha" class="w-1/2 border border-slate-300 rounded-lg px-1.5 py-1 text-[11px]" />
+              <input type="date" id="filterMovDateTo" onchange="renderAll()" title="Hasta fecha" class="w-1/2 border border-slate-300 rounded-lg px-1.5 py-1 text-[11px]" />
+            </div>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Ordenar Tabla Por</label>
+            <select id="sortMovSelect" onchange="applyMovSortFromSelect(this.value)" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium text-slate-800">
+              <option value="fecha_desc">Fecha Movimiento (Más recientes)</option>
+              <option value="fecha_asc">Fecha Movimiento (Más antiguos)</option>
+              <option value="folio_desc">Folio Evidence (Mayor a menor)</option>
+              <option value="folio_asc">Folio Evidence (Menor a mayor)</option>
+              <option value="comId_desc">COM Origen (Mayor a menor)</option>
+              <option value="comId_asc">COM Origen (Menor a mayor)</option>
+              <option value="destino_asc">Destino Físico (A → Z)</option>
+              <option value="estadoLogistico_asc">Estado Logístico (A → Z)</option>
+              <option value="fechaEnvio_asc">Fecha Envío (Próximos primero)</option>
+            </select>
+          </div>
+        </div>
       </div>
+
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
             <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500 bg-slate-50">
-              <th class="py-3 px-4">Folio Evidence</th>
-              <th class="py-3 px-4">Tipo / Centro Contable</th>
-              <th class="py-3 px-4">COM Origen</th>
-              <th class="py-3 px-4">Destino Físico</th>
-              <th class="py-3 px-4">Estatus Evidence</th>
-              <th class="py-3 px-4">Estado Físico / Logística</th>
-              <th class="py-3 px-4">Fecha Envío</th>
+              <th onclick="toggleMovTableSort('folio')" class="py-3 px-4 sortable">Folio / Fecha ↕</th>
+              <th onclick="toggleMovTableSort('tipo')" class="py-3 px-4 sortable">Tipo / C. Contable ↕</th>
+              <th onclick="toggleMovTableSort('comId')" class="py-3 px-4 sortable">COM Origen ↕</th>
+              <th onclick="toggleMovTableSort('destino')" class="py-3 px-4 sortable">Destino Físico ↕</th>
+              <th onclick="toggleMovTableSort('estatusEvidence')" class="py-3 px-4 sortable">Estatus Evidence ↕</th>
+              <th onclick="toggleMovTableSort('estadoLogistico')" class="py-3 px-4 sortable">Estado Físico / Logística ↕</th>
+              <th onclick="toggleMovTableSort('fechaEnvio')" class="py-3 px-4 sortable">Fecha Envío ↕</th>
               <th class="py-3 px-4 text-right">Acciones</th>
             </tr>
           </thead>
@@ -188,7 +268,104 @@
       </div>
     </section>
 
-    <!-- VISTA 4: CALENDARIO Y TABLERO DE LOGÍSTICA -->
+    <!-- VISTA 4: INVENTARIO FÍSICO CUERNAVACA (5S / RESGUARDO / TALLER / REPARACIÓN MINA) -->
+    <section id="view-inventario" class="hidden space-y-5">
+      <!-- KPIs de Ingeniería Industrial / Control de Piso -->
+      <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" id="inventarioKpis"></div>
+
+      <!-- Barra de Controles y Filtros de Inventario Físico -->
+      <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
+        <div class="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h3 class="text-sm font-bold text-slate-900">Control de Inventario Físico, Resguardos y Logística Inversa (Cuernavaca)</h3>
+            <p class="text-xs text-slate-500">Materiales en piso sin COM o remanentes: insumos de taller exterior, paquetes de oficinas, herramienta dañada de mina, devoluciones de San Miguel y resguardos de Yautepec.</p>
+          </div>
+          <div class="flex flex-wrap gap-2">
+            <button onclick="exportInventarioCSV()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
+              <i data-lucide="download" class="w-4 h-4"></i> Exportar Excel (CSV)
+            </button>
+            <button onclick="openInvModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
+              <i data-lucide="plus" class="w-4 h-4"></i> Agregar Artículo a Piso
+            </button>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5 pt-2 border-t border-slate-100 text-xs">
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Categoría / Motivo en Almacén</label>
+            <select id="filterInvCategoria" onchange="renderAll()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+              <option value="ALL">Todas las categorías</option>
+              <option value="Taller Exterior Cuernavaca">Insumo / Herramienta Taller Exterior Cuernavaca</option>
+              <option value="Resguardo Oficinas / Personal">Resguardo Oficinas Planta Alta / Personal</option>
+              <option value="Dañado de Mina (Para Reparar)">Equipo / Máquina Dañada de Mina (Por Reparar)</option>
+              <option value="Resguardo Yautepec">Resguardo enviado desde Yautepec</option>
+              <option value="Devolución de Mina (San Miguel / Balsas / A101)">Devolución de Mina (San Miguel / Balsas / A101)</option>
+              <option value="Stock Local / Remanente COM">Stock Local Cuernavaca / Remanente de COM</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Estado Físico / Condición (5S)</label>
+            <select id="filterInvCondicion" onchange="renderAll()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+              <option value="ALL">Todas las condiciones</option>
+              <option value="Disponible / Operativo">🟢 Disponible / Operativo</option>
+              <option value="En Resguardo (No tocar)">🔵 En Resguardo (Custodia / Oficinas)</option>
+              <option value="Dañado / Por Reparar">🔴 Dañado / Por Reparar (Cuarentena)</option>
+              <option value="En Reparación / Taller">🟠 En Reparación / Revisión Técnica</option>
+              <option value="Para Baja / Desecho">⚫ Para Baja / Chatarra</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Origen / Procedencia</label>
+            <select id="filterInvOrigen" onchange="renderAll()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-white">
+              <option value="ALL">Todos los orígenes</option>
+              <option value="Cuernavaca (Taller / Oficinas)">Cuernavaca (Taller / Oficinas)</option>
+              <option value="Mina San Miguel (ASM)">Mina San Miguel (ASM)</option>
+              <option value="Yautepec">Yautepec</option>
+              <option value="Almacén 101 / 400">Almacén 101 / 400</option>
+              <option value="Balsas">Balsas</option>
+              <option value="Proveedor Directo (Sin COM)">Proveedor Directo (Sin COM)</option>
+              <option value="Compra con COM (Se quedó aquí)">Compra con COM (Se quedó aquí)</option>
+            </select>
+          </div>
+
+          <div>
+            <label class="text-[11px] font-semibold text-slate-500 block mb-1">Ordenar Inventario Por</label>
+            <select id="sortInvSelect" onchange="renderAll()" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5 bg-slate-50 font-medium">
+              <option value="fecha_desc">Fecha Ingreso (Más recientes primero)</option>
+              <option value="fecha_asc">Antigüedad en Piso (Más días estancado primero)</option>
+              <option value="nombre_asc">Descripción / Material (A → Z)</option>
+              <option value="ubicacion_asc">Ubicación / Rack en Almacén (A → Z)</option>
+              <option value="categoria_asc">Categoría (A → Z)</option>
+              <option value="condicion_asc">Condición / Estado (A → Z)</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tabla de Inventario Físico -->
+      <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500 bg-slate-50">
+              <th class="py-3 px-4">Código / Serie / COM</th>
+              <th class="py-3 px-4">Material / Herramienta / Equipo</th>
+              <th class="py-3 px-4">Cant.</th>
+              <th class="py-3 px-4">Categoría y Origen</th>
+              <th class="py-3 px-4">Condición (5S)</th>
+              <th class="py-3 px-4">Ubicación en Cuernavaca</th>
+              <th class="py-3 px-4">Responsable / Dueño</th>
+              <th class="py-3 px-4">Días en Piso</th>
+              <th class="py-3 px-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="inventarioTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VISTA 5: CALENDARIO Y TABLERO DE LOGÍSTICA -->
     <section id="view-logistica" class="hidden space-y-6">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -206,7 +383,7 @@
       <div id="logisticsColumns" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VISTA 5: ACLARACIONES DE JEFES Y BITÁCORA -->
+    <!-- VISTA 6: ACLARACIONES DE JEFES Y BITÁCORA -->
     <section id="view-aclaraciones" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100 bg-red-50/50">
@@ -219,7 +396,7 @@
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100">
           <h3 class="text-sm font-bold text-slate-900">Historial de Cambios y Trazabilidad</h3>
-          <p class="text-xs text-slate-500">Registro automático de quién creó o modificó fechas, estados y aclaraciones.</p>
+          <p class="text-xs text-slate-500">Registro automático de quién creó o modificó fechas, estados, inventario y aclaraciones.</p>
         </div>
         <div id="auditLogList" class="divide-y divide-slate-100 max-h-[500px] overflow-y-auto p-4 space-y-2.5 text-xs"></div>
       </div>
@@ -228,10 +405,11 @@
   </main>
 
   <!-- NAVEGACIÓN INFERIOR MÓVIL -->
-  <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 z-30 text-[11px] text-slate-500">
+  <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-slate-200 flex justify-around py-2 z-30 text-[10px] text-slate-500">
     <button onclick="switchTab('dashboard')" class="flex flex-col items-center gap-0.5"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Inicio</button>
     <button onclick="switchTab('coms')" class="flex flex-col items-center gap-0.5"><i data-lucide="file-text" class="w-4 h-4"></i>COMs</button>
-    <button onclick="switchTab('movimientos')" class="flex flex-col items-center gap-0.5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Movimientos</button>
+    <button onclick="switchTab('movimientos')" class="flex flex-col items-center gap-0.5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Evidence</button>
+    <button onclick="switchTab('inventario')" class="flex flex-col items-center gap-0.5"><i data-lucide="boxes" class="w-4 h-4"></i>Inventario</button>
     <button onclick="switchTab('logistica')" class="flex flex-col items-center gap-0.5"><i data-lucide="truck" class="w-4 h-4"></i>Logística</button>
     <button onclick="switchTab('aclaraciones')" class="flex flex-col items-center gap-0.5"><i data-lucide="help-circle" class="w-4 h-4"></i>Jefes</button>
   </nav>
@@ -330,9 +508,14 @@
           </div>
         </div>
 
-        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
-          <button type="button" onclick="closeModal('comModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
-          <button type="submit" class="px-5 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">Guardar COM</button>
+        <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+          <button type="button" onclick="deleteCurrentCom()" class="text-red-600 hover:text-red-800 font-semibold px-3 py-2 rounded-lg hover:bg-red-50">
+            🗑️ Eliminar COM
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick="closeModal('comModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">Guardar COM</button>
+          </div>
         </div>
       </form>
     </div>
@@ -452,9 +635,129 @@
           </div>
         </div>
 
-        <div class="flex justify-end gap-2 pt-4 border-t border-slate-100">
-          <button type="button" onclick="closeModal('movModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
-          <button type="submit" class="px-5 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">Guardar Movimiento</button>
+        <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+          <button type="button" onclick="deleteCurrentMov()" class="text-red-600 hover:text-red-800 font-semibold px-3 py-2 rounded-lg hover:bg-red-50">
+            🗑️ Eliminar Movimiento
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick="closeModal('movModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-slate-900 text-white font-semibold hover:bg-slate-800">Guardar Movimiento</button>
+          </div>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- MODAL: CREAR / EDITAR INVENTARIO FÍSICO (5S / PISO / RESGUARDO / DAÑADOS) -->
+  <div id="invModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-3xl w-full p-6 shadow-xl border border-slate-200 my-8 max-h-[92vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Registro de Inventario Físico en Almacén Cuernavaca</h3>
+          <p class="text-xs text-slate-500">Para materiales sin COM, sobrantes locales, resguardos de oficina/Yautepec, insumos de taller exterior o herramientas dañadas de mina.</p>
+        </div>
+        <button onclick="closeModal('invModal')" class="text-slate-400 hover:text-slate-700">✕</button>
+      </div>
+
+      <form id="invForm" onsubmit="saveInventarioItem(event)" class="space-y-4 mt-4 text-xs">
+        <input type="hidden" id="invId" />
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div class="sm:col-span-2">
+            <label class="font-semibold text-slate-700 block mb-1">Descripción del Material / Herramienta / Máquina *</label>
+            <input type="text" id="invNombre" required placeholder="Ej. Bomba sumergible 5HP dañada / Caja de electrodos 7018 / Paquete Ing. Carlos" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-bold text-slate-900" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Código / No. Serie / Económico</label>
+            <input type="text" id="invCodigo" placeholder="Ej. S/N-4821, MQ-PUL-001 o SIN-COD" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-mono" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Categoría Operativa en Piso *</label>
+            <select id="invCategoria" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold">
+              <option value="Taller Exterior Cuernavaca">Insumo / Herramienta Taller Exterior Cuernavaca</option>
+              <option value="Resguardo Oficinas / Personal">Resguardo Oficinas Planta Alta / Personal</option>
+              <option value="Dañado de Mina (Para Reparar)">Equipo / Máquina Dañada de Mina (Por Reparar)</option>
+              <option value="Resguardo Yautepec">Resguardo enviado desde Yautepec</option>
+              <option value="Devolución de Mina (San Miguel / Balsas / A101)">Devolución de Mina (San Miguel / Balsas / A101)</option>
+              <option value="Stock Local / Remanente COM">Stock Local Cuernavaca / Remanente de COM</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Condición / Estado 5S *</label>
+            <select id="invCondicion" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white font-semibold">
+              <option value="Disponible / Operativo">🟢 Disponible / Operativo</option>
+              <option value="En Resguardo (No tocar)">🔵 En Resguardo (Custodia / Oficinas)</option>
+              <option value="Dañado / Por Reparar">🔴 Dañado / Por Reparar (Cuarentena)</option>
+              <option value="En Reparación / Taller">🟠 En Reparación / Revisión Técnica</option>
+              <option value="Para Baja / Desecho">⚫ Para Baja / Chatarra</option>
+            </select>
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Origen / Procedencia *</label>
+            <select id="invOrigen" class="w-full border border-slate-300 rounded-lg px-3 py-2 bg-white">
+              <option value="Cuernavaca (Taller / Oficinas)">Cuernavaca (Taller / Oficinas)</option>
+              <option value="Mina San Miguel (ASM)">Mina San Miguel (ASM)</option>
+              <option value="Yautepec">Yautepec</option>
+              <option value="Almacén 101 / 400">Almacén 101 / 400</option>
+              <option value="Balsas">Balsas</option>
+              <option value="Proveedor Directo (Sin COM)">Proveedor Directo (Sin COM)</option>
+              <option value="Compra con COM (Se quedó aquí)">Compra con COM (Se quedó aquí)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Cantidad Actual *</label>
+            <input type="number" step="any" id="invCantidad" required value="1" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-bold" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Unidad</label>
+            <input type="text" id="invUnidad" value="Pieza" placeholder="Pieza, Juego, Rollo, Kg..." class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Ubicación Física (5S) *</label>
+            <input type="text" id="invUbicacion" required placeholder="Ej. Rack A-2, Piso Zona Taller, Mesa Oficinas" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-semibold" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">COM Origen (Si aplica)</label>
+            <input type="text" id="invComRef" placeholder="Opcional (Ej. 4161 o SIN COM)" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Responsable / Dueño / Quien lo envió o dejó</label>
+            <input type="text" id="invResponsable" placeholder="Ej. Taller Mecánico Afuera / Ing. Eliseo / Devolución San Miguel" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+          <div>
+            <label class="font-semibold text-slate-700 block mb-1">Fecha de Ingreso a Cuernavaca</label>
+            <input type="date" id="invFechaIngreso" required class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+          </div>
+        </div>
+
+        <div>
+          <label class="font-semibold text-slate-700 block mb-1">Falla Reportada / Motivo de Resguardo / Notas de Seguimiento</label>
+          <textarea id="invNotas" rows="2" placeholder="Ej. Llegó de San Miguel con motor quemado esperando técnico / Guardado para el taller de afuera / Paquete personal para oficinas planta alta..." class="w-full border border-slate-300 rounded-lg px-3 py-2"></textarea>
+        </div>
+
+        <div class="border-t border-slate-200 pt-3">
+          <label class="font-semibold text-slate-700 block mb-1">📷 Fotografías del Estado Físico / Placa / Serie (Celular)</label>
+          <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event, 'invPhotosPreview')" class="w-full text-xs" />
+          <div id="invPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto"></div>
+        </div>
+
+        <div class="flex items-center justify-between pt-4 border-t border-slate-100">
+          <button type="button" onclick="deleteCurrentInv()" class="text-red-600 hover:text-red-800 font-semibold px-3 py-2 rounded-lg hover:bg-red-50">
+            🗑️ Eliminar del Inventario
+          </button>
+          <div class="flex gap-2">
+            <button type="button" onclick="closeModal('invModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
+            <button type="submit" class="px-5 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700">Guardar en Inventario Físico</button>
+          </div>
         </div>
       </form>
     </div>
@@ -491,15 +794,15 @@
         <h3 class="text-sm font-bold text-slate-900">Conexión Gratuita a Firebase y Cloudinary</h3>
         <button onclick="closeModal('configModal')">✕</button>
       </div>
-      <p class="text-slate-500">Pega aquí los datos de tu proyecto gratuito de Firebase y Cloudinary para sincronizar en tiempo real con tus jefes.</p>
+      <p class="text-slate-500">Firebase ya está conectado automáticamente. Aquí puedes guardar tus datos de Cloudinary para subir PDFs.</p>
       <div>
-        <label class="font-semibold block mb-1">Objeto JSON de Firebase (firebaseConfig)</label>
-        <textarea id="firebaseConfigInput" rows="4" placeholder='{"apiKey": "...", "projectId": "almacen-anky", ...}' class="w-full border border-slate-300 rounded-lg p-2 font-mono text-[11px]"></textarea>
+        <label class="font-semibold block mb-1">Objeto JSON de Firebase (Opcional)</label>
+        <textarea id="firebaseConfigInput" rows="3" placeholder='Conectado por defecto a almacen-anky' class="w-full border border-slate-300 rounded-lg p-2 font-mono text-[11px]"></textarea>
       </div>
       <div class="grid grid-cols-2 gap-2">
         <div>
           <label class="font-semibold block mb-1">Cloudinary Cloud Name</label>
-          <input type="text" id="cloudinaryNameInput" placeholder="Ej. dxyz12345" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
+          <input type="text" id="cloudinaryNameInput" placeholder="Ej. nrnjodic" class="w-full border border-slate-300 rounded-lg px-2.5 py-1.5" />
         </div>
         <div>
           <label class="font-semibold block mb-1">Upload Preset (Unsigned)</label>
@@ -516,21 +819,23 @@
   <!-- LÓGICA DE LA APLICACIÓN -->
   <script type="module">
     import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
-    import { getFirestore, collection, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+    import { getFirestore, collection, doc, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
     // Configurar worker de PDF.js
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 
-    // Estado global
+    // Estado global de filtros y ordenamiento
     let currentComFilter = 'ALL';
     let currentMovFilter = 'ALL';
     let currentDestinationFilter = null;
+    let movSortField = 'fecha';
+    let movSortDir = 'desc';
     let tempComPhotos = [];
     let tempMovPhotos = [];
+    let tempInvPhotos = [];
     let db = null;
 
     // CREDENCIALES FIJAS DE FIREBASE ANKY
-    // La configuración es pública por diseño; protege la base de datos con reglas de Firestore.
     const AUTO_FIREBASE_CONFIG = {
       apiKey: "AIzaSyAQZ2pPIokrVWybOMkyYlHQbRE4aGklI_8",
       authDomain: "almacen-anky.firebaseapp.com",
@@ -540,7 +845,6 @@
       appId: "1:845584504347:web:dc4f52552bda84b563cabe"
     };
 
-    // Datos iniciales basados en tus documentos reales de Evidence ERP para que veas tu operación real cargada
     const INITIAL_COMS = [
       {
         folio: "3942",
@@ -668,11 +972,63 @@
       }
     ];
 
+    const INITIAL_INVENTARIO = [
+      {
+        id: "INV-1001",
+        codigo: "FE-AB-044",
+        nombre: "CARDA CIRCULAR 4\" 5/8\"-11 TRUPER (Para Taller Exterior)",
+        categoria: "Taller Exterior Cuernavaca",
+        condicion: "Disponible / Operativo",
+        origen: "Compra con COM (Se quedó aquí)",
+        cantidad: 15,
+        unidad: "Pieza",
+        ubicacion: "Estante Taller B-1",
+        comRef: "4161",
+        responsable: "Taller Exterior Cuernavaca",
+        fechaIngreso: "2026-11-10",
+        notas: "Material disponible en almacén para consumo de trabajos del taller de afuera.",
+        fotos: []
+      },
+      {
+        id: "INV-1002",
+        codigo: "S/N-MINA-08",
+        nombre: "ESMERILADORA INDUSTRIAL 7\" DEWALT (Retorno por falla eléctrica)",
+        categoria: "Dañado de Mina (Para Reparar)",
+        condicion: "Dañado / Por Reparar",
+        origen: "Mina San Miguel (ASM)",
+        cantidad: 2,
+        unidad: "Pieza",
+        ubicacion: "Zona Cuarentena / Piso Reparaciones",
+        comRef: "SIN COM",
+        responsable: "Devolución Mina San Miguel",
+        fechaIngreso: "2026-11-12",
+        notas: "Mandadas desde San Miguel dañadas para revisión y cambio de carbones/armadura.",
+        fotos: []
+      },
+      {
+        id: "INV-1003",
+        codigo: "RES-YAU-01",
+        nombre: "CAJA DE HERRAMIENTA Y EQUIPO DE MEDICIÓN EN CUSTODIA",
+        categoria: "Resguardo Yautepec",
+        condicion: "En Resguardo (No tocar)",
+        origen: "Yautepec",
+        cantidad: 1,
+        unidad: "Lote",
+        ubicacion: "Rack Resguardo C-2",
+        comRef: "SIN COM",
+        responsable: "Ing. Eliseo (Taller Yautepec)",
+        fechaIngreso: "2026-11-14",
+        notas: "Enviado desde Yautepec para resguardar temporalmente en almacén central Cuernavaca.",
+        fotos: []
+      }
+    ];
+
     let state = {
       coms: JSON.parse(localStorage.getItem('anky_coms')) || INITIAL_COMS,
       movimientos: JSON.parse(localStorage.getItem('anky_movs')) || INITIAL_MOVS,
+      inventario: JSON.parse(localStorage.getItem('anky_inv')) || INITIAL_INVENTARIO,
       logs: JSON.parse(localStorage.getItem('anky_logs')) || [
-        { fecha: new Date().toLocaleString(), usuario: "Sistema", accion: "Sistema ANKY inicializado con ejemplos reales de Evidence ERP." }
+        { fecha: new Date().toLocaleString(), usuario: "Sistema", accion: "Sistema ANKY inicializado con ejemplos reales de Evidence ERP e Inventario Físico." }
       ],
       user: JSON.parse(localStorage.getItem('anky_user')) || { nombre: "Luis (Almacén Cuernavaca)", rol: "Responsable Cuernavaca" }
     };
@@ -680,6 +1036,7 @@
     function persistState() {
       localStorage.setItem('anky_coms', JSON.stringify(state.coms));
       localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
+      localStorage.setItem('anky_inv', JSON.stringify(state.inventario));
       localStorage.setItem('anky_logs', JSON.stringify(state.logs));
       renderAll();
     }
@@ -726,8 +1083,16 @@
           }
         }, (err) => {
           console.error("Error leyendo movimientos de Firebase:", err);
-          badge.textContent = "Error Firebase";
-          badge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-red-50 text-red-700 border border-red-200";
+        });
+
+        onSnapshot(collection(db, "inventario_fisico"), (snap) => {
+          if (!snap.empty) {
+            state.inventario = snap.docs.map(d => d.data());
+            localStorage.setItem('anky_inv', JSON.stringify(state.inventario));
+            renderAll();
+          }
+        }, (err) => {
+          console.error("Error leyendo inventario físico de Firebase:", err);
         });
 
         badge.textContent = "Conectado a Firebase";
@@ -756,7 +1121,6 @@
           fullText += content.items.map(item => item.str).join(" ") + "\n";
         }
 
-        // Distinguir si es una Orden de COMPRA o un Detalle de Movimiento de Evidence
         const isCompraDoc = /COMPRA\s+Folio:\s*COM-(\d+)/i.test(fullText) || (/Comprador/i.test(fullText) && /Valor\s+Unitario/i.test(fullText));
 
         if (isCompraDoc) {
@@ -767,7 +1131,6 @@
           const comentsMatch = fullText.match(/Comentarios:\s*(.+?)(?:Subtotal|Moneda|EVIDENCE ERP)/is);
           const rawComment = comentsMatch ? comentsMatch[1].replace(/\s+/g, ' ').trim() : "";
 
-          // Sugerir solicitante y destino leyendo el comentario
           let suggestedSolicitante = "Por aclarar";
           const solMatch = rawComment.match(/(?:SOLICITA|SOLICITADO POR|ING\.?|LIC\.?)\s+([A-ZÁÉÍÓÚÑ\s]{4,35})/i);
           if (solMatch) suggestedSolicitante = solMatch[0].trim();
@@ -778,7 +1141,6 @@
           else if (/SAN MIGUEL/i.test(rawComment)) suggestedDestino = "San Miguel (ASM)";
           else if (/YAUTEPEC/i.test(rawComment)) suggestedDestino = "Yautepec";
 
-          // Extraer partidas con código tipo XX-XXX-000
           const itemRegex = /(\d+)\s+(Pieza|Par|Metro|Rollo|Kg|Litro|Juego|Caja)\s+([A-Z]{2,6}-[A-Z0-9]{2,5}-\d{2,4})\s+(.+?)\s+[\d,]+\.\d{2}/gi;
           const extractedItems = [];
           let m;
@@ -808,7 +1170,6 @@
 
           alert(`✅ PDF de COMPRA detectado (COM-${folioNum}). Se pre-llenaron los datos y ${extractedItems.length} materiales automáticamente. Revisa y confirma.`);
         } else {
-          // Es un Movimiento de Evidence (Entrada por Compra, Entrada por traspaso o Salida por consumo)
           const folioMatch = fullText.match(/Folio:\s*(\d+)/i);
           const comRefMatch = fullText.match(/COM[-\s]?(\d+)/i);
           const descMatch = fullText.match(/Descripci[oó]n:\s*(.+?)(?:Documento generado|$)/is);
@@ -873,9 +1234,12 @@
           if (previewContainerId === 'comPhotosPreview') {
             tempComPhotos.push(compressedDataUrl);
             renderPhotoPreviews('comPhotosPreview', tempComPhotos);
-          } else {
+          } else if (previewContainerId === 'movPhotosPreview') {
             tempMovPhotos.push(compressedDataUrl);
             renderPhotoPreviews('movPhotosPreview', tempMovPhotos);
+          } else if (previewContainerId === 'invPhotosPreview') {
+            tempInvPhotos.push(compressedDataUrl);
+            renderPhotoPreviews('invPhotosPreview', tempInvPhotos);
           }
         };
         img.src = e.target.result;
@@ -885,7 +1249,8 @@
 
     function renderPhotoPreviews(containerId, photosArray) {
       const container = document.getElementById(containerId);
-      container.innerHTML = photosArray.map((src, idx) => `
+      if (!container) return;
+      container.innerHTML = photosArray.map((src) => `
         <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-300 shrink-0">
           <img src="${src}" class="w-full h-full object-cover cursor-pointer" onclick="window.open('${src}')" />
         </div>
@@ -940,9 +1305,14 @@
         badge.classList.add('hidden');
       }
 
+      // Badge inventario físico
+      const badgeInv = document.getElementById('badgeInventario');
+      if (badgeInv) badgeInv.textContent = state.inventario.length;
+
       renderDashboard(q);
       renderComs(q);
       renderMovimientos(q);
+      renderInventario(q);
       renderLogistica(q);
       renderAclaracionesYLogs();
       lucide.createIcons();
@@ -953,16 +1323,15 @@
       const sinEnviar = state.movimientos.filter(m => m.tipo !== 'ENTRADA' && (m.estadoLogistico.includes('En piso') || m.estadoLogistico.includes('programado')));
       const enviosHoy = state.movimientos.filter(m => m.fechaEnvio === todayStr && !m.estadoLogistico.includes('Entregado'));
       const comsAclarar = state.coms.filter(c => c.requiereAclaracion);
-      const comsParciales = state.coms.filter(c => c.estado === 'Recibida parcial');
-      const enCuernavaca = state.coms.filter(c => c.estado === 'En almacén Cuernavaca' || c.estado === 'Se queda en Cuernavaca');
+      const invDanados = state.inventario.filter(i => i.condicion.includes('Dañado') || i.condicion.includes('Reparación'));
 
       const kpis = [
         { label: "COMs Registradas", val: state.coms.length, color: "text-slate-900", tab: "coms" },
         { label: "Salidas sin Enviar Físico", val: sinEnviar.length, color: "text-amber-600", tab: "logistica" },
         { label: "Envíos Programados Hoy", val: enviosHoy.length, color: "text-blue-600", tab: "logistica" },
         { label: "COMs por Aclarar (Jefes)", val: comsAclarar.length, color: "text-red-600", tab: "aclaraciones" },
-        { label: "COMs Entrega Parcial", val: comsParciales.length, color: "text-purple-600", tab: "coms" },
-        { label: "En Piso Cuernavaca", val: enCuernavaca.length, color: "text-emerald-600", tab: "coms" }
+        { label: "Partidas Inventario Físico", val: state.inventario.length, color: "text-emerald-600", tab: "inventario" },
+        { label: "Equipos Mina por Reparar", val: invDanados.length, color: "text-orange-600", tab: "inventario" }
       ];
 
       document.getElementById('dashboardKpis').innerHTML = kpis.map(k => `
@@ -972,7 +1341,6 @@
         </div>
       `).join('');
 
-      // Tarjetas del diagrama de flujo ANKY
       const destinosFlujo = ["Almacén 101", "Almacén 400", "San Miguel (ASM)", "Balsas", "Yautepec", "Cuernavaca Central"];
       document.getElementById('destinationFlowCards').innerHTML = destinosFlujo.map(dest => {
         const movsDest = state.movimientos.filter(m => m.destino === dest);
@@ -988,7 +1356,6 @@
         `;
       }).join('');
 
-      // Lista de salidas pendientes de envío físico
       document.getElementById('dashPendingShipments').innerHTML = sinEnviar.length ? sinEnviar.map(m => `
         <div class="p-3.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
           <div>
@@ -1008,7 +1375,6 @@
         </div>
       `).join('') : `<p class="p-4 text-xs text-slate-400">No hay salidas pendientes de envío físico.</p>`;
 
-      // Lista de COMs que requieren atención
       const attComs = state.coms.filter(c => c.requiereAclaracion || c.estado === 'En almacén Cuernavaca' || c.estado === 'Recibida parcial');
       document.getElementById('dashAttentionComs').innerHTML = attComs.length ? attComs.map(c => `
         <div class="p-3.5 hover:bg-slate-50 flex items-center justify-between gap-2 text-xs">
@@ -1066,7 +1432,6 @@
               <strong>Comentario COM / Aclaraciones:</strong> ${c.comentarios || 'Sin comentarios'}
             </div>
 
-            <!-- Tabla de materiales de la COM -->
             <div class="overflow-x-auto">
               <table class="w-full text-xs text-left">
                 <thead>
@@ -1099,7 +1464,6 @@
               </table>
             </div>
 
-            <!-- Movimientos de Evidence ligados a esta COM -->
             <div class="pt-2 border-t border-slate-100 flex flex-wrap items-center justify-between gap-2 text-xs">
               <div class="flex flex-wrap items-center gap-1.5">
                 <span class="text-slate-500 font-medium">Movimientos Evidence asociados (${relMovs.length}):</span>
@@ -1116,16 +1480,51 @@
       }).join('') : `<p class="text-xs text-slate-400 bg-white p-6 rounded-xl border border-slate-200">No se encontraron COMs con ese filtro.</p>`;
     }
 
+    // RENDER DE MOVIMIENTOS CON FILTROS AVANZADOS Y ORDENAMIENTO
     function renderMovimientos(q) {
+      const fDest = document.getElementById('filterMovDestino')?.value || 'ALL';
+      const fEstEv = document.getElementById('filterMovEstatusEv')?.value || 'ALL';
+      const fEstLog = document.getElementById('filterMovEstadoLog')?.value || 'ALL';
+      const fDateFrom = document.getElementById('filterMovDateFrom')?.value || '';
+      const fDateTo = document.getElementById('filterMovDateTo')?.value || '';
+
       let list = state.movimientos.filter(m => {
-        const text = `${m.folio} ${m.comId} ${m.tipo} ${m.destino} ${m.centroContable} ${m.descripcion} ${m.unidad}`.toLowerCase();
+        const text = `${m.folio} ${m.comId} ${m.tipo} ${m.destino} ${m.centroContable} ${m.descripcion} ${m.unidad} ${m.capturadoDesde}`.toLowerCase();
         if (q && !text.includes(q)) return false;
         if (currentMovFilter !== 'ALL' && m.tipo !== currentMovFilter) return false;
         if (currentDestinationFilter && m.destino !== currentDestinationFilter) return false;
+        if (fDest !== 'ALL' && m.destino !== fDest) return false;
+        if (fEstEv !== 'ALL' && m.estatusEvidence !== fEstEv) return false;
+        if (fEstLog !== 'ALL' && m.estadoLogistico !== fEstLog) return false;
+        if (fDateFrom && (m.fecha || '') < fDateFrom) return false;
+        if (fDateTo && (m.fecha || '') > fDateTo) return false;
         return true;
       });
 
-      document.getElementById('movimientosTableBody').innerHTML = list.map(m => `
+      // Ordenar resultados
+      list.sort((a, b) => {
+        let valA = a[movSortField] || '';
+        let valB = b[movSortField] || '';
+
+        if (movSortField === 'folio' || movSortField === 'comId') {
+          const numA = parseInt(String(valA).replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt(String(valB).replace(/\D/g, ''), 10) || 0;
+          return movSortDir === 'asc' ? numA - numB : numB - numA;
+        }
+
+        if (movSortField === 'fechaEnvio') {
+          if (!valA && valB) return 1;
+          if (valA && !valB) return -1;
+        }
+
+        const cmp = String(valA).localeCompare(String(valB), 'es', { numeric: true });
+        return movSortDir === 'asc' ? cmp : -cmp;
+      });
+
+      const countEl = document.getElementById('movCountBadge');
+      if (countEl) countEl.textContent = `${list.length} movimiento(s)`;
+
+      document.getElementById('movimientosTableBody').innerHTML = list.length ? list.map(m => `
         <tr class="hover:bg-slate-50 text-xs">
           <td class="py-3 px-4 font-bold text-slate-900">
             #${m.folio}
@@ -1156,7 +1555,116 @@
             <button onclick="editMov('${m.folio}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1 rounded font-medium">Editar</button>
           </td>
         </tr>
-      `).join('');
+      `).join('') : `<tr><td colspan="8" class="p-6 text-center text-xs text-slate-400">No hay movimientos que coincidan con los filtros seleccionados.</td></tr>`;
+    }
+
+    // RENDER DE INVENTARIO FÍSICO CUERNAVACA (5S / RESGUARDO / TALLER / REPARACIÓN MINA)
+    function renderInventario(q) {
+      const catFilter = document.getElementById('filterInvCategoria')?.value || 'ALL';
+      const condFilter = document.getElementById('filterInvCondicion')?.value || 'ALL';
+      const origFilter = document.getElementById('filterInvOrigen')?.value || 'ALL';
+      const sortVal = document.getElementById('sortInvSelect')?.value || 'fecha_desc';
+
+      // KPIs de Inventario Físico
+      const totalItems = state.inventario.length;
+      const tallerItems = state.inventario.filter(i => i.categoria === 'Taller Exterior Cuernavaca').length;
+      const oficinasItems = state.inventario.filter(i => i.categoria === 'Resguardo Oficinas / Personal').length;
+      const danadosMina = state.inventario.filter(i => i.categoria === 'Dañado de Mina (Para Reparar)' || i.condicion.includes('Dañado')).length;
+      const yautepecRes = state.inventario.filter(i => i.categoria === 'Resguardo Yautepec').length;
+      const devolucionesMina = state.inventario.filter(i => i.categoria.includes('Devolución de Mina')).length;
+
+      const invKpis = [
+        { label: "Total Partidas en Piso", val: totalItems, color: "text-slate-900" },
+        { label: "Insumos Taller Exterior", val: tallerItems, color: "text-emerald-700" },
+        { label: "Resguardo Oficinas", val: oficinasItems, color: "text-blue-700" },
+        { label: "Dañados Mina (Reparar)", val: danadosMina, color: "text-red-600" },
+        { label: "Resguardo Yautepec", val: yautepecRes, color: "text-purple-700" },
+        { label: "Devoluciones San Miguel", val: devolucionesMina, color: "text-amber-700" }
+      ];
+
+      const kpiContainer = document.getElementById('inventarioKpis');
+      if (kpiContainer) {
+        kpiContainer.innerHTML = invKpis.map(k => `
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[11px] font-medium text-slate-500">${k.label}</p>
+            <p class="text-2xl font-bold mt-1 ${k.color}">${k.val}</p>
+          </div>
+        `).join('');
+      }
+
+      let list = state.inventario.filter(item => {
+        const text = `${item.id} ${item.codigo} ${item.nombre} ${item.categoria} ${item.condicion} ${item.origen} ${item.ubicacion} ${item.responsable} ${item.comRef} ${item.notas}`.toLowerCase();
+        if (q && !text.includes(q)) return false;
+        if (catFilter !== 'ALL' && item.categoria !== catFilter) return false;
+        if (condFilter !== 'ALL' && item.condicion !== condFilter) return false;
+        if (origFilter !== 'ALL' && item.origen !== origFilter) return false;
+        return true;
+      });
+
+      list.sort((a, b) => {
+        if (sortVal === 'fecha_desc') return (b.fechaIngreso || '').localeCompare(a.fechaIngreso || '');
+        if (sortVal === 'fecha_asc') return (a.fechaIngreso || '').localeCompare(b.fechaIngreso || '');
+        if (sortVal === 'nombre_asc') return (a.nombre || '').localeCompare(b.nombre || '', 'es');
+        if (sortVal === 'ubicacion_asc') return (a.ubicacion || '').localeCompare(b.ubicacion || '', 'es');
+        if (sortVal === 'categoria_asc') return (a.categoria || '').localeCompare(b.categoria || '', 'es');
+        if (sortVal === 'condicion_asc') return (a.condicion || '').localeCompare(b.condicion || '', 'es');
+        return 0;
+      });
+
+      const tbody = document.getElementById('inventarioTableBody');
+      if (!tbody) return;
+
+      const todayMs = Date.now();
+      tbody.innerHTML = list.length ? list.map(item => {
+        const ingresoDate = item.fechaIngreso ? new Date(item.fechaIngreso + 'T00:00:00') : new Date();
+        const diasEnPiso = Math.max(0, Math.floor((todayMs - ingresoDate.getTime()) / (1000 * 60 * 60 * 24)));
+
+        let badgeCondClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+        if (item.condicion.includes('Resguardo')) badgeCondClass = "bg-blue-50 text-blue-700 border-blue-200";
+        else if (item.condicion.includes('Dañado')) badgeCondClass = "bg-red-50 text-red-700 border-red-200";
+        else if (item.condicion.includes('Reparación')) badgeCondClass = "bg-amber-50 text-amber-800 border-amber-200";
+        else if (item.condicion.includes('Baja')) badgeCondClass = "bg-slate-200 text-slate-700 border-slate-300";
+
+        return `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4">
+              <div class="font-mono font-bold text-slate-900">${item.codigo || 'SIN-COD'}</div>
+              <div class="text-[10px] text-slate-400">${item.comRef && item.comRef !== 'SIN COM' ? `COM-${item.comRef}` : 'Sin COM'}</div>
+            </td>
+            <td class="py-3 px-4">
+              <div class="font-semibold text-slate-900">${item.nombre}</div>
+              ${item.notas ? `<div class="text-[11px] text-slate-500 line-clamp-1 mt-0.5">${item.notas}</div>` : ''}
+              ${(item.fotos && item.fotos.length) ? `<div class="text-[10px] text-emerald-700 font-medium mt-0.5">📷 ${item.fotos.length} foto(s)</div>` : ''}
+            </td>
+            <td class="py-3 px-4">
+              <div class="flex items-center gap-1.5">
+                <button onclick="quickAdjustInvQty('${item.id}', -1)" class="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center">-</button>
+                <span class="font-bold text-sm text-slate-900">${item.cantidad}</span>
+                <button onclick="quickAdjustInvQty('${item.id}', 1)" class="w-5 h-5 rounded bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold flex items-center justify-center">+</button>
+              </div>
+              <div class="text-[10px] text-slate-400">${item.unidad || 'Pieza'}</div>
+            </td>
+            <td class="py-3 px-4">
+              <span class="font-semibold text-slate-800 block">${item.categoria}</span>
+              <span class="text-[11px] text-slate-500">Origen: ${item.origen}</span>
+            </td>
+            <td class="py-3 px-4">
+              <span class="px-2 py-0.5 rounded-full border text-[11px] font-semibold ${badgeCondClass}">${item.condicion}</span>
+            </td>
+            <td class="py-3 px-4">
+              <span class="px-2 py-1 rounded bg-slate-100 text-slate-800 font-mono font-semibold text-[11px]">📍 ${item.ubicacion}</span>
+            </td>
+            <td class="py-3 px-4 text-slate-700 font-medium">${item.responsable || 'Almacén Central'}</td>
+            <td class="py-3 px-4">
+              <span class="font-bold ${diasEnPiso > 15 ? 'text-amber-700' : 'text-slate-700'}">${diasEnPiso} días</span>
+              <div class="text-[10px] text-slate-400">${item.fechaIngreso}</div>
+            </td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="editInvItem('${item.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1 rounded font-medium">Editar</button>
+            </td>
+          </tr>
+        `;
+      }).join('') : `<tr><td colspan="9" class="p-6 text-center text-xs text-slate-400">No hay materiales ni equipos en el inventario físico con ese filtro.</td></tr>`;
     }
 
     function renderLogistica(q) {
@@ -1233,23 +1741,75 @@
       `).join('');
     }
 
-    // FUNCIONES INTERACTIVAS Y DE GUARDADO
+    // FUNCIONES INTERACTIVAS Y DE FILTRADO/ORDENAMIENTO
     window.switchTab = function(tabName) {
-      ['dashboard', 'coms', 'movimientos', 'logistica', 'aclaraciones'].forEach(t => {
-        document.getElementById(`view-${t}`).classList.add('hidden');
+      ['dashboard', 'coms', 'movimientos', 'inventario', 'logistica', 'aclaraciones'].forEach(t => {
+        document.getElementById(`view-${t}`)?.classList.add('hidden');
         document.getElementById(`tab-${t}`)?.classList.remove('tab-active');
       });
-      document.getElementById(`view-${tabName}`).classList.remove('hidden');
+      document.getElementById(`view-${tabName}`)?.classList.remove('hidden');
       document.getElementById(`tab-${tabName}`)?.classList.add('tab-active');
     };
 
     window.setComFilter = function(f) { currentComFilter = f; renderAll(); };
-    window.setMovFilter = function(f) { currentMovFilter = f; currentDestinationFilter = null; renderAll(); };
+
+    window.setMovFilter = function(f) {
+      currentMovFilter = f;
+      ['ALL', 'ENTRADA', 'TRASPASO', 'CONSUMO'].forEach(k => {
+        const btn = document.getElementById(`pill-mov-${k}`);
+        if (btn) {
+          btn.className = k === f
+            ? "text-xs px-3 py-1.5 rounded-lg bg-slate-900 text-white font-medium"
+            : "text-xs px-3 py-1.5 rounded-lg bg-white border border-slate-200 text-slate-700 hover:bg-slate-50";
+        }
+      });
+      renderAll();
+    };
+
+    window.onDropdownDestinoChange = function(val) {
+      currentDestinationFilter = val === 'ALL' ? null : val;
+      renderAll();
+    };
+
     window.filterByDestination = function(dest) {
       currentDestinationFilter = currentDestinationFilter === dest ? null : dest;
+      const sel = document.getElementById('filterMovDestino');
+      if (sel) sel.value = currentDestinationFilter || 'ALL';
       switchTab('movimientos');
       renderAll();
     };
+
+    window.applyMovSortFromSelect = function(val) {
+      const [field, dir] = val.split('_');
+      movSortField = field;
+      movSortDir = dir;
+      renderAll();
+    };
+
+    window.toggleMovTableSort = function(field) {
+      if (movSortField === field) {
+        movSortDir = movSortDir === 'asc' ? 'desc' : 'asc';
+      } else {
+        movSortField = field;
+        movSortDir = 'asc';
+      }
+      renderAll();
+    };
+
+    window.resetMovFilters = function() {
+      currentMovFilter = 'ALL';
+      currentDestinationFilter = null;
+      document.getElementById('filterMovDestino').value = 'ALL';
+      document.getElementById('filterMovEstatusEv').value = 'ALL';
+      document.getElementById('filterMovEstadoLog').value = 'ALL';
+      document.getElementById('filterMovDateFrom').value = '';
+      document.getElementById('filterMovDateTo').value = '';
+      document.getElementById('sortMovSelect').value = 'fecha_desc';
+      movSortField = 'fecha';
+      movSortDir = 'desc';
+      setMovFilter('ALL');
+    };
+
     window.syncMobileSearch = function(val) {
       document.getElementById('globalSearch').value = val;
       renderAll();
@@ -1345,6 +1905,17 @@
       closeModal('comModal');
     };
 
+    window.deleteCurrentCom = async function() {
+      const folio = document.getElementById('comFolio').value.trim();
+      if (!folio) return;
+      if (!confirm(`¿Seguro que deseas eliminar la COM-${folio}?`)) return;
+      state.coms = state.coms.filter(c => c.folio !== folio);
+      if (db) await deleteDoc(doc(db, "coms", folio)).catch(console.error);
+      addAuditLog(`Eliminó COM-${folio}`);
+      persistState();
+      closeModal('comModal');
+    };
+
     window.openMovModal = function(prefill = null) {
       document.getElementById('movForm').reset();
       tempMovPhotos = prefill?.fotos || [];
@@ -1404,6 +1975,118 @@
       addAuditLog(`Registró/actualizó ${newMov.tipo} #${folio} de COM-${newMov.comId} hacia ${newMov.destino} (${newMov.estadoLogistico})`);
       persistState();
       closeModal('movModal');
+    };
+
+    window.deleteCurrentMov = async function() {
+      const folio = document.getElementById('movFolio').value.trim();
+      if (!folio) return;
+      if (!confirm(`¿Seguro que deseas eliminar el Movimiento #${folio}?`)) return;
+      state.movimientos = state.movimientos.filter(m => m.folio !== folio);
+      if (db) await deleteDoc(doc(db, "movimientos", folio)).catch(console.error);
+      addAuditLog(`Eliminó Movimiento Evidence #${folio}`);
+      persistState();
+      closeModal('movModal');
+    };
+
+    // FUNCIONES CRUD DE INVENTARIO FÍSICO (5S / PISO / RESGUARDO / TALLER)
+    window.openInvModal = function(prefill = null) {
+      document.getElementById('invForm').reset();
+      tempInvPhotos = prefill?.fotos || [];
+      renderPhotoPreviews('invPhotosPreview', tempInvPhotos);
+
+      document.getElementById('invId').value = prefill?.id || `INV-${Date.now().toString().slice(-5)}`;
+      document.getElementById('invNombre').value = prefill?.nombre || '';
+      document.getElementById('invCodigo').value = prefill?.codigo || '';
+      document.getElementById('invCategoria').value = prefill?.categoria || 'Taller Exterior Cuernavaca';
+      document.getElementById('invCondicion').value = prefill?.condicion || 'Disponible / Operativo';
+      document.getElementById('invOrigen').value = prefill?.origen || 'Cuernavaca (Taller / Oficinas)';
+      document.getElementById('invCantidad').value = prefill?.cantidad ?? 1;
+      document.getElementById('invUnidad').value = prefill?.unidad || 'Pieza';
+      document.getElementById('invUbicacion').value = prefill?.ubicacion || '';
+      document.getElementById('invComRef').value = prefill?.comRef || '';
+      document.getElementById('invResponsable').value = prefill?.responsable || '';
+      document.getElementById('invFechaIngreso').value = prefill?.fechaIngreso || new Date().toISOString().split('T')[0];
+      document.getElementById('invNotas').value = prefill?.notas || '';
+      openModal('invModal');
+    };
+
+    window.editInvItem = function(id) {
+      const item = state.inventario.find(i => i.id === id);
+      if (item) openInvModal(item);
+    };
+
+    window.saveInventarioItem = async function(e) {
+      e.preventDefault();
+      const id = document.getElementById('invId').value.trim() || `INV-${Date.now()}`;
+      const newItem = {
+        id,
+        nombre: document.getElementById('invNombre').value.trim(),
+        codigo: document.getElementById('invCodigo').value.trim() || 'SIN-COD',
+        categoria: document.getElementById('invCategoria').value,
+        condicion: document.getElementById('invCondicion').value,
+        origen: document.getElementById('invOrigen').value,
+        cantidad: parseFloat(document.getElementById('invCantidad').value) || 0,
+        unidad: document.getElementById('invUnidad').value.trim() || 'Pieza',
+        ubicacion: document.getElementById('invUbicacion').value.trim(),
+        comRef: document.getElementById('invComRef').value.replace(/[^0-9A-Za-z-\s]/g, '').trim() || 'SIN COM',
+        responsable: document.getElementById('invResponsable').value.trim() || 'Almacén Central',
+        fechaIngreso: document.getElementById('invFechaIngreso').value,
+        notas: document.getElementById('invNotas').value.trim(),
+        fotos: tempInvPhotos
+      };
+
+      const idx = state.inventario.findIndex(i => i.id === id);
+      if (idx >= 0) state.inventario[idx] = newItem;
+      else state.inventario.unshift(newItem);
+
+      if (db) {
+        await setDoc(doc(db, "inventario_fisico", id), newItem).catch(console.error);
+      }
+
+      addAuditLog(`Inventario Físico: Guardó "${newItem.nombre}" (${newItem.cantidad} ${newItem.unidad}) en ${newItem.ubicacion} [${newItem.categoria}]`);
+      persistState();
+      closeModal('invModal');
+    };
+
+    window.quickAdjustInvQty = async function(id, delta) {
+      const item = state.inventario.find(i => i.id === id);
+      if (!item) return;
+      item.cantidad = Math.max(0, (parseFloat(item.cantidad) || 0) + delta);
+      if (db) await setDoc(doc(db, "inventario_fisico", id), item).catch(console.error);
+      addAuditLog(`Ajustó cantidad en piso de "${item.nombre}" a ${item.cantidad} ${item.unidad}`);
+      persistState();
+    };
+
+    window.deleteCurrentInv = async function() {
+      const id = document.getElementById('invId').value.trim();
+      if (!id) return;
+      const item = state.inventario.find(i => i.id === id);
+      if (!confirm(`¿Seguro que deseas dar de baja/eliminar "${item?.nombre || id}" del inventario físico?`)) return;
+      state.inventario = state.inventario.filter(i => i.id !== id);
+      if (db) await deleteDoc(doc(db, "inventario_fisico", id)).catch(console.error);
+      addAuditLog(`Eliminó del inventario físico: "${item?.nombre || id}"`);
+      persistState();
+      closeModal('invModal');
+    };
+
+    window.exportInventarioCSV = function() {
+      if (!state.inventario.length) {
+        alert("No hay registros en el inventario físico para exportar.");
+        return;
+      }
+      const headers = ["ID", "Codigo_Serie", "Material_Equipo", "Cantidad", "Unidad", "Categoria", "Condicion_5S", "Origen", "Ubicacion_Cuernavaca", "COM_Referencia", "Responsable", "Fecha_Ingreso", "Notas"];
+      const rows = state.inventario.map(i => [
+        i.id, i.codigo, `"${(i.nombre || '').replace(/"/g, '""')}"`, i.cantidad, i.unidad,
+        `"${i.categoria}"`, `"${i.condicion}"`, `"${i.origen}"`, `"${i.ubicacion}"`,
+        i.comRef, `"${i.responsable}"`, i.fechaIngreso, `"${(i.notas || '').replace(/"/g, '""')}"`
+      ].join(','));
+      const csvContent = "\uFEFF" + headers.join(',') + "\n" + rows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Inventario_Fisico_ANKY_Cuernavaca_${new Date().toISOString().split('T')[0]}.csv`;
+      a.click();
     };
 
     window.quickUpdateDate = async function(folio, newDate) {
@@ -1476,11 +2159,9 @@
     };
 
     window.saveCloudConfig = function() {
-      const fbText = document.getElementById('firebaseConfigInput').value.trim();
       const cName = document.getElementById('cloudinaryNameInput').value.trim();
       const cPreset = document.getElementById('cloudinaryPresetInput').value.trim();
 
-      // Firebase ya está configurado automáticamente en el código.
       if (cName) localStorage.setItem('anky_cloud_name', cName);
       if (cPreset) localStorage.setItem('anky_cloud_preset', cPreset);
 
@@ -1495,5 +2176,3 @@
   </script>
 </body>
 </html>
-
-

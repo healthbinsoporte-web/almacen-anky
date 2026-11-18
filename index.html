@@ -117,10 +117,8 @@
 
     <!-- VISTA 1: DASHBOARD -->
     <section id="view-dashboard" class="space-y-6">
-      <!-- Tarjetas de resumen -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" id="dashboardKpis"></div>
 
-      <!-- Mapa visual de flujo Cuernavaca -> Destinos -->
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
         <div class="flex items-center justify-between mb-3">
           <h3 class="text-xs font-bold uppercase tracking-wider text-slate-500">Estado por Destino (Flujo Operativo ANKY)</h3>
@@ -130,7 +128,6 @@
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <!-- Atención Inmediata: Salidas en Evidence pendientes de envío físico -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
@@ -142,7 +139,6 @@
           <div id="dashPendingShipments" class="divide-y divide-slate-100 max-h-80 overflow-y-auto"></div>
         </div>
 
-        <!-- COMs pendientes de aclaración o recepción parcial -->
         <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
           <div class="px-4 py-3 border-b border-slate-100 flex items-center justify-between">
             <h3 class="text-sm font-semibold text-slate-900 flex items-center gap-2">
@@ -172,7 +168,6 @@
 
     <!-- VISTA 3: MOVIMIENTOS EVIDENCE (CON FILTROS Y ORDENAMIENTO MULTICRITERIO) -->
     <section id="view-movimientos" class="hidden space-y-4">
-      <!-- Panel de Filtros y Ordenamiento -->
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
           <div class="flex flex-wrap gap-1.5" id="movTypePills">
@@ -270,15 +265,13 @@
 
     <!-- VISTA 4: INVENTARIO FÍSICO CUERNAVACA (5S / RESGUARDO / TALLER / REPARACIÓN MINA) -->
     <section id="view-inventario" class="hidden space-y-5">
-      <!-- KPIs de Ingeniería Industrial / Control de Piso -->
       <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3" id="inventarioKpis"></div>
 
-      <!-- Barra de Controles y Filtros de Inventario Físico -->
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 class="text-sm font-bold text-slate-900">Control de Inventario Físico, Resguardos y Logística Inversa (Cuernavaca)</h3>
-            <p class="text-xs text-slate-500">Materiales en piso sin COM o remanentes: insumos de taller exterior, paquetes de oficinas, herramienta dañada de mina, devoluciones de San Miguel y resguardos de Yautepec.</p>
+            <p class="text-xs text-slate-500">Haz clic sobre cualquier miniatura fotográfica en la tabla para ampliar o descargar la foto sin que se abra en blanco.</p>
           </div>
           <div class="flex flex-wrap gap-2">
             <button onclick="exportInventarioCSV()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
@@ -350,7 +343,7 @@
           <thead>
             <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500 bg-slate-50">
               <th class="py-3 px-4">Código / Serie / COM</th>
-              <th class="py-3 px-4">Material / Herramienta / Equipo</th>
+              <th class="py-3 px-4">Material / Herramienta / Fotos</th>
               <th class="py-3 px-4">Cant.</th>
               <th class="py-3 px-4">Categoría y Origen</th>
               <th class="py-3 px-4">Condición (5S)</th>
@@ -413,6 +406,24 @@
     <button onclick="switchTab('logistica')" class="flex flex-col items-center gap-0.5"><i data-lucide="truck" class="w-4 h-4"></i>Logística</button>
     <button onclick="switchTab('aclaraciones')" class="flex flex-col items-center gap-0.5"><i data-lucide="help-circle" class="w-4 h-4"></i>Jefes</button>
   </nav>
+
+  <!-- MODAL VISOR DE FOTOGRAFÍAS A PANTALLA COMPLETA (EVITA ABOUT:BLANK) -->
+  <div id="photoLightboxModal" class="hidden fixed inset-0 z-[90] bg-slate-950/90 flex flex-col items-center justify-center p-4" onclick="if(event.target === this) closePhotoLightbox()">
+    <div class="flex flex-wrap items-center justify-between gap-3 w-full max-w-4xl mb-3">
+      <span class="text-white text-xs font-semibold flex items-center gap-1.5">
+        📷 Vista de Evidencia Fotográfica ANKY
+      </span>
+      <div class="flex items-center gap-2">
+        <a id="lightboxDownloadBtn" href="#" download="Evidencia_ANKY.jpg" class="bg-white hover:bg-slate-100 text-slate-900 px-3.5 py-1.5 rounded-lg text-xs font-bold shadow flex items-center gap-1">
+          ⬇ Descargar Imagen
+        </a>
+        <button type="button" onclick="closePhotoLightbox()" class="bg-red-600 hover:bg-red-700 text-white px-3.5 py-1.5 rounded-lg text-xs font-bold shadow">
+          ✕ Cerrar
+        </button>
+      </div>
+    </div>
+    <img id="lightboxImageEl" src="" alt="Evidencia fotográfica" class="max-w-full max-h-[82vh] rounded-xl shadow-2xl border border-slate-700 object-contain bg-black" />
+  </div>
 
   <!-- MODAL: CREAR / EDITAR COM -->
   <div id="comModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4 overflow-y-auto">
@@ -502,9 +513,9 @@
             </div>
           </div>
           <div>
-            <label class="font-semibold text-slate-700 block mb-1">📷 Tomar Foto de Evidencia (Celular)</label>
+            <label class="font-semibold text-slate-700 block mb-1">📷 Tomar Foto de Evidencia (Clic en miniatura para ampliar)</label>
             <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event, 'comPhotosPreview')" class="w-full text-xs" />
-            <div id="comPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto"></div>
+            <div id="comPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto py-1"></div>
           </div>
         </div>
 
@@ -629,9 +640,9 @@
             </div>
           </div>
           <div>
-            <label class="font-semibold text-slate-700 block mb-1">📷 Foto de Carga / Entrega</label>
+            <label class="font-semibold text-slate-700 block mb-1">📷 Foto de Carga / Entrega (Clic en miniatura para ampliar)</label>
             <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event, 'movPhotosPreview')" class="w-full text-xs" />
-            <div id="movPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto"></div>
+            <div id="movPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto py-1"></div>
           </div>
         </div>
 
@@ -745,9 +756,9 @@
         </div>
 
         <div class="border-t border-slate-200 pt-3">
-          <label class="font-semibold text-slate-700 block mb-1">📷 Fotografías del Estado Físico / Placa / Serie (Celular)</label>
+          <label class="font-semibold text-slate-700 block mb-1">📷 Fotografías del Estado Físico / Placa / Serie (Clic en la miniatura para ver en grande)</label>
           <input type="file" accept="image/*" capture="environment" onchange="handlePhotoCapture(event, 'invPhotosPreview')" class="w-full text-xs" />
-          <div id="invPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto"></div>
+          <div id="invPhotosPreview" class="flex gap-2 mt-2 overflow-x-auto py-1"></div>
         </div>
 
         <div class="flex items-center justify-between pt-4 border-t border-slate-100">
@@ -1053,6 +1064,47 @@
       }
     }
 
+    // VISOR DE FOTOS INTEGRADO (SOLUCIONA EL PROBLEMA DE ABOUT:BLANK EN CHROME/EDGE/CELULAR)
+    window.openPhotoLightbox = function(src) {
+      if (!src) return;
+      const modal = document.getElementById('photoLightboxModal');
+      const img = document.getElementById('lightboxImageEl');
+      const dl = document.getElementById('lightboxDownloadBtn');
+      img.src = src;
+      dl.href = src;
+      dl.download = `Evidencia_ANKY_${Date.now()}.jpg`;
+      modal.classList.remove('hidden');
+    };
+
+    window.closePhotoLightbox = function() {
+      document.getElementById('photoLightboxModal').classList.add('hidden');
+      document.getElementById('lightboxImageEl').src = '';
+    };
+
+    window.openEntityPhoto = function(type, id, photoIdx) {
+      let list = state.inventario;
+      let key = 'id';
+      if (type === 'com') { list = state.coms; key = 'folio'; }
+      else if (type === 'mov') { list = state.movimientos; key = 'folio'; }
+      const found = list.find(x => String(x[key]) === String(id));
+      if (found && found.fotos && found.fotos[photoIdx]) {
+        openPhotoLightbox(found.fotos[photoIdx]);
+      }
+    };
+
+    window.removeTempPhoto = function(containerId, idx) {
+      if (containerId === 'comPhotosPreview') {
+        tempComPhotos.splice(idx, 1);
+        renderPhotoPreviews('comPhotosPreview', tempComPhotos);
+      } else if (containerId === 'movPhotosPreview') {
+        tempMovPhotos.splice(idx, 1);
+        renderPhotoPreviews('movPhotosPreview', tempMovPhotos);
+      } else if (containerId === 'invPhotosPreview') {
+        tempInvPhotos.splice(idx, 1);
+        renderPhotoPreviews('invPhotosPreview', tempInvPhotos);
+      }
+    };
+
     // Inicializar conexión Firebase automáticamente en cualquier dispositivo
     function initCloudConnection() {
       try {
@@ -1245,14 +1297,16 @@
         img.src = e.target.result;
       };
       reader.readAsDataURL(file);
+      event.target.value = "";
     };
 
     function renderPhotoPreviews(containerId, photosArray) {
       const container = document.getElementById(containerId);
       if (!container) return;
-      container.innerHTML = photosArray.map((src) => `
-        <div class="relative w-14 h-14 rounded-lg overflow-hidden border border-slate-300 shrink-0">
-          <img src="${src}" class="w-full h-full object-cover cursor-pointer" onclick="window.open('${src}')" />
+      container.innerHTML = photosArray.map((src, idx) => `
+        <div class="relative w-16 h-16 rounded-lg overflow-hidden border border-slate-300 shrink-0 group shadow-sm">
+          <img src="${src}" class="w-full h-full object-cover cursor-pointer hover:opacity-90 transition" onclick="openPhotoLightbox(this.src)" title="Clic para ver en pantalla completa" />
+          <button type="button" onclick="removeTempPhoto('${containerId}', ${idx})" title="Borrar foto" class="absolute top-0.5 right-0.5 w-4 h-4 rounded-full bg-red-600 text-white text-[10px] leading-none flex items-center justify-center shadow">✕</button>
         </div>
       `).join('');
     }
@@ -1295,7 +1349,6 @@
       const q = (document.getElementById('globalSearch')?.value || '').toLowerCase().trim();
       document.getElementById('currentUserLabel').textContent = state.user.nombre;
 
-      // Badge aclaraciones
       const countAclarar = state.coms.filter(c => c.requiereAclaracion).length;
       const badge = document.getElementById('badgeAclaraciones');
       if (countAclarar > 0) {
@@ -1305,7 +1358,6 @@
         badge.classList.add('hidden');
       }
 
-      // Badge inventario físico
       const badgeInv = document.getElementById('badgeInventario');
       if (badgeInv) badgeInv.textContent = state.inventario.length;
 
@@ -1473,7 +1525,12 @@
                   </span>
                 `).join('')}
               </div>
-              ${(c.fotos && c.fotos.length) ? `<span class="text-emerald-700 font-medium">📷 ${c.fotos.length} foto(s) adjuntas</span>` : ''}
+              ${(c.fotos && c.fotos.length) ? `
+                <div class="flex items-center gap-1.5">
+                  <span class="text-emerald-700 font-medium">📷 Fotos:</span>
+                  ${c.fotos.map((f, idx) => `<img src="${f}" onclick="openEntityPhoto('com', '${c.folio}', ${idx})" class="w-8 h-8 rounded object-cover border border-slate-300 cursor-pointer hover:scale-105 transition" title="Clic para ampliar foto" />`).join('')}
+                </div>
+              ` : ''}
             </div>
           </div>
         `;
@@ -1501,7 +1558,6 @@
         return true;
       });
 
-      // Ordenar resultados
       list.sort((a, b) => {
         let valA = a[movSortField] || '';
         let valB = b[movSortField] || '';
@@ -1558,14 +1614,13 @@
       `).join('') : `<tr><td colspan="8" class="p-6 text-center text-xs text-slate-400">No hay movimientos que coincidan con los filtros seleccionados.</td></tr>`;
     }
 
-    // RENDER DE INVENTARIO FÍSICO CUERNAVACA (5S / RESGUARDO / TALLER / REPARACIÓN MINA)
+    // RENDER DE INVENTARIO FÍSICO CUERNAVACA (CON MINIATURAS FOTOS DIRECTAS AL VISOR LIGHTBOX)
     function renderInventario(q) {
       const catFilter = document.getElementById('filterInvCategoria')?.value || 'ALL';
       const condFilter = document.getElementById('filterInvCondicion')?.value || 'ALL';
       const origFilter = document.getElementById('filterInvOrigen')?.value || 'ALL';
       const sortVal = document.getElementById('sortInvSelect')?.value || 'fecha_desc';
 
-      // KPIs de Inventario Físico
       const totalItems = state.inventario.length;
       const tallerItems = state.inventario.filter(i => i.categoria === 'Taller Exterior Cuernavaca').length;
       const oficinasItems = state.inventario.filter(i => i.categoria === 'Resguardo Oficinas / Personal').length;
@@ -1634,7 +1689,13 @@
             <td class="py-3 px-4">
               <div class="font-semibold text-slate-900">${item.nombre}</div>
               ${item.notas ? `<div class="text-[11px] text-slate-500 line-clamp-1 mt-0.5">${item.notas}</div>` : ''}
-              ${(item.fotos && item.fotos.length) ? `<div class="text-[10px] text-emerald-700 font-medium mt-0.5">📷 ${item.fotos.length} foto(s)</div>` : ''}
+              ${(item.fotos && item.fotos.length) ? `
+                <div class="flex items-center gap-1.5 mt-1.5">
+                  ${item.fotos.map((f, idx) => `
+                    <img src="${f}" onclick="openEntityPhoto('inv', '${item.id}', ${idx})" class="w-9 h-9 rounded-lg object-cover border border-slate-300 cursor-pointer hover:scale-105 transition shadow-sm" title="Clic para ver foto en pantalla completa" />
+                  `).join('')}
+                </div>
+              ` : ''}
             </td>
             <td class="py-3 px-4">
               <div class="flex items-center gap-1.5">
@@ -1837,7 +1898,7 @@
     window.openComModal = function(prefill = null) {
       document.getElementById('comForm').reset();
       document.getElementById('comItemsContainer').innerHTML = '';
-      tempComPhotos = prefill?.fotos || [];
+      tempComPhotos = [...(prefill?.fotos || [])];
       renderPhotoPreviews('comPhotosPreview', tempComPhotos);
 
       if (prefill) {
@@ -1918,7 +1979,7 @@
 
     window.openMovModal = function(prefill = null) {
       document.getElementById('movForm').reset();
-      tempMovPhotos = prefill?.fotos || [];
+      tempMovPhotos = [...(prefill?.fotos || [])];
       renderPhotoPreviews('movPhotosPreview', tempMovPhotos);
 
       document.getElementById('movFolio').value = prefill?.folio || '';
@@ -1991,7 +2052,7 @@
     // FUNCIONES CRUD DE INVENTARIO FÍSICO (5S / PISO / RESGUARDO / TALLER)
     window.openInvModal = function(prefill = null) {
       document.getElementById('invForm').reset();
-      tempInvPhotos = prefill?.fotos || [];
+      tempInvPhotos = [...(prefill?.fotos || [])];
       renderPhotoPreviews('invPhotosPreview', tempInvPhotos);
 
       document.getElementById('invId').value = prefill?.id || `INV-${Date.now().toString().slice(-5)}`;

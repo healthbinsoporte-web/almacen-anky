@@ -370,10 +370,8 @@
 
     <!-- VISTA 5: CONSUMOS DE YAUTEPEC (LECTURA AUTOMÁTICA DE VALES DE SALIDA ESCRITOS A MANO) -->
     <section id="view-yautepec" class="hidden space-y-5">
-      <!-- Tarjetas Resumen Yautepec -->
       <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="yautepecKpis"></div>
 
-      <!-- Panel Principal de Carga y Extracción Automática -->
       <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
         <div class="flex flex-wrap items-center justify-between gap-4">
           <div>
@@ -438,7 +436,7 @@
         </div>
       </div>
 
-      <!-- SUB-VISTA A: TABLA DE CONTROL POR DÍA (CADA RENGLÓN CONSUMIDO Y SU VALE ORIGINAL) -->
+      <!-- SUB-VISTA A: TABLA DE CONTROL POR DÍA -->
       <div id="yautepecDailyView" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -527,7 +525,7 @@
     <button onclick="switchTab('logistica')" class="flex flex-col items-center gap-0.5"><i data-lucide="truck" class="w-4 h-4"></i>Envíos</button>
   </nav>
 
-  <!-- MODAL VISOR DE FOTOGRAFÍAS A PANTALLA COMPLETA (EVITA ABOUT:BLANK EN COMs, MOVIMIENTOS, INVENTARIO Y VALES) -->
+  <!-- MODAL VISOR DE FOTOGRAFÍAS A PANTALLA COMPLETA -->
   <div id="photoLightboxModal" class="hidden fixed inset-0 z-[90] bg-slate-950/90 flex flex-col items-center justify-center p-4" onclick="if(event.target === this) closePhotoLightbox()">
     <div class="flex flex-wrap items-center justify-between gap-3 w-full max-w-4xl mb-3">
       <span class="text-white text-xs font-semibold flex items-center gap-1.5">
@@ -545,7 +543,7 @@
     <img id="lightboxImageEl" src="" alt="Evidencia fotográfica" class="max-w-full max-h-[82vh] rounded-xl shadow-2xl border border-slate-700 object-contain bg-black" />
   </div>
 
-  <!-- MODAL: REVISAR / CONFIRMAR VALE DE SALIDA DE YAUTEPEC (CON OCR AUTOMÁTICO Y ROTACIÓN DE HOJA) -->
+  <!-- MODAL: REVISAR / CONFIRMAR VALE DE SALIDA DE YAUTEPEC -->
   <div id="yautepecModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4 overflow-y-auto">
     <div class="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-xl border border-slate-200 my-6 max-h-[94vh] overflow-y-auto">
       <div class="flex items-center justify-between pb-3 border-b border-slate-100">
@@ -557,7 +555,6 @@
       </div>
 
       <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-4">
-        <!-- Columna Izquierda: Vista previa de la hoja con botón para rotar y volver a leer OCR -->
         <div class="lg:col-span-5 bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col items-center justify-between space-y-2.5">
           <div class="w-full flex items-center justify-between text-xs">
             <span class="font-bold text-slate-700">Hoja Escaneada / Foto WhatsApp</span>
@@ -579,7 +576,6 @@
           </div>
         </div>
 
-        <!-- Columna Derecha: Formulario estructurado del Vale -->
         <form id="yauForm" onsubmit="saveYautepecVale(event)" class="lg:col-span-7 space-y-3.5 text-xs">
           <input type="hidden" id="yauId" />
 
@@ -609,7 +605,6 @@
             </div>
           </div>
 
-          <!-- Botones rápidos de consumibles frecuentes de Marco (1 clic si la letra está difícil) -->
           <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
             <span class="text-[10px] font-bold uppercase text-slate-500 block mb-1.5">Atajos de Consumibles Frecuentes Yautepec (1 clic para agregar):</span>
             <div class="flex flex-wrap gap-1.5">
@@ -622,7 +617,6 @@
             </div>
           </div>
 
-          <!-- Lista de materiales del vale -->
           <div>
             <div class="flex items-center justify-between mb-1.5">
               <label class="font-bold text-slate-800">Materiales Consumidos en este Vale</label>
@@ -1254,7 +1248,6 @@
       }
     ];
 
-    // Ejemplos reales de los vales de salida de Yautepec compartidos por Marco
     const INITIAL_YAUTEPEC_VALES = [
       {
         id: "YAU-547",
@@ -1314,23 +1307,53 @@
       }
     ];
 
+    function safeLoadStorage(key, fallback) {
+      try {
+        const raw = localStorage.getItem(key);
+        return raw ? JSON.parse(raw) : fallback;
+      } catch (e) {
+        return fallback;
+      }
+    }
+
     let state = {
-      coms: JSON.parse(localStorage.getItem('anky_coms')) || INITIAL_COMS,
-      movimientos: JSON.parse(localStorage.getItem('anky_movs')) || INITIAL_MOVS,
-      inventario: JSON.parse(localStorage.getItem('anky_inv')) || INITIAL_INVENTARIO,
-      yautepecVales: JSON.parse(localStorage.getItem('anky_yau')) || INITIAL_YAUTEPEC_VALES,
-      logs: JSON.parse(localStorage.getItem('anky_logs')) || [
+      coms: safeLoadStorage('anky_coms', INITIAL_COMS),
+      movimientos: safeLoadStorage('anky_movs', INITIAL_MOVS),
+      inventario: safeLoadStorage('anky_inv', INITIAL_INVENTARIO),
+      yautepecVales: safeLoadStorage('anky_yau', INITIAL_YAUTEPEC_VALES),
+      logs: safeLoadStorage('anky_logs', [
         { fecha: new Date().toLocaleString(), usuario: "Sistema", accion: "Sistema ANKY inicializado con Consumos de Yautepec, Inventario Físico y Evidence ERP." }
-      ],
-      user: JSON.parse(localStorage.getItem('anky_user')) || { nombre: "Luis (Almacén Cuernavaca)", rol: "Responsable Cuernavaca" }
+      ]),
+      user: safeLoadStorage('anky_user', { nombre: "Luis (Almacén Cuernavaca)", rol: "Responsable Cuernavaca" })
     };
 
+    // Guarda en localStorage SIN las cadenas pesadas de base64 de imágenes para evitar QuotaExceededError (límite 5MB del navegador).
+    // Las fotos completas se mantienen en memoria activa y se guardan en Firebase Firestore.
+    function stripImagesForLocalBackup(arr) {
+      return (arr || []).map(item => {
+        const clone = { ...item };
+        if (Array.isArray(clone.fotos)) clone.fotos = [];
+        if (typeof clone.foto === 'string' && clone.foto.startsWith('data:')) clone.foto = '';
+        return clone;
+      });
+    }
+
     function persistState() {
-      localStorage.setItem('anky_coms', JSON.stringify(state.coms));
-      localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
-      localStorage.setItem('anky_inv', JSON.stringify(state.inventario));
-      localStorage.setItem('anky_yau', JSON.stringify(state.yautepecVales));
-      localStorage.setItem('anky_logs', JSON.stringify(state.logs));
+      try {
+        localStorage.setItem('anky_coms', JSON.stringify(stripImagesForLocalBackup(state.coms)));
+        localStorage.setItem('anky_movs', JSON.stringify(stripImagesForLocalBackup(state.movimientos)));
+        localStorage.setItem('anky_inv', JSON.stringify(stripImagesForLocalBackup(state.inventario)));
+        localStorage.setItem('anky_yau', JSON.stringify(stripImagesForLocalBackup(state.yautepecVales)));
+        localStorage.setItem('anky_logs', JSON.stringify((state.logs || []).slice(0, 80)));
+      } catch (err) {
+        console.warn("Aviso: almacenamiento local lleno, limpiando caché local antiguo (datos a salvo en Firebase):", err);
+        try {
+          localStorage.removeItem('anky_yau');
+          localStorage.removeItem('anky_inv');
+          localStorage.removeItem('anky_movs');
+          localStorage.removeItem('anky_coms');
+        } catch (_) {}
+      }
       renderAll();
     }
 
@@ -1346,7 +1369,7 @@
       }
     }
 
-    // VISOR DE FOTOS INTEGRADO (FUNCIONA EN COMs, MOVIMIENTOS, INVENTARIO Y VALES YAUTEPEC SIN ABOUT:BLANK)
+    // VISOR DE FOTOS INTEGRADO
     window.openPhotoLightbox = function(src) {
       if (!src) return;
       const modal = document.getElementById('photoLightboxModal');
@@ -1405,8 +1428,7 @@
         onSnapshot(collection(db, "coms"), (snap) => {
           if (!snap.empty) {
             state.coms = snap.docs.map(d => d.data());
-            localStorage.setItem('anky_coms', JSON.stringify(state.coms));
-            renderAll();
+            persistState();
           }
         }, (err) => {
           console.error("Error leyendo COMs de Firebase:", err);
@@ -1417,8 +1439,7 @@
         onSnapshot(collection(db, "movimientos"), (snap) => {
           if (!snap.empty) {
             state.movimientos = snap.docs.map(d => d.data());
-            localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
-            renderAll();
+            persistState();
           }
         }, (err) => {
           console.error("Error leyendo movimientos de Firebase:", err);
@@ -1427,8 +1448,7 @@
         onSnapshot(collection(db, "inventario_fisico"), (snap) => {
           if (!snap.empty) {
             state.inventario = snap.docs.map(d => d.data());
-            localStorage.setItem('anky_inv', JSON.stringify(state.inventario));
-            renderAll();
+            persistState();
           }
         }, (err) => {
           console.error("Error leyendo inventario físico de Firebase:", err);
@@ -1437,8 +1457,7 @@
         onSnapshot(collection(db, "consumos_yautepec"), (snap) => {
           if (!snap.empty) {
             state.yautepecVales = snap.docs.map(d => d.data());
-            localStorage.setItem('anky_yau', JSON.stringify(state.yautepecVales));
-            renderAll();
+            persistState();
           }
         }, (err) => {
           console.error("Error leyendo consumos Yautepec de Firebase:", err);
@@ -1465,9 +1484,8 @@
           img.onload = function() {
             const canvas = document.createElement('canvas');
             const ctx = canvas.getContext('2d');
-            // Si la foto del vale horizontal viene tomada vertical/girada (alto > ancho), la enderezamos 270°
             const isRotatedVertical = img.height > img.width * 1.15;
-            const maxDim = 1200;
+            const maxDim = 950;
 
             if (isRotatedVertical) {
               const scale = img.height > maxDim ? maxDim / img.height : 1;
@@ -1483,7 +1501,6 @@
               ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
             }
 
-            // Crear versión en alto contraste en escala de grises solo para mejorar lectura OCR
             const ocrCanvas = document.createElement('canvas');
             ocrCanvas.width = canvas.width;
             ocrCanvas.height = canvas.height;
@@ -1499,7 +1516,7 @@
             oCtx.putImageData(imgData, 0, 0);
 
             resolve({
-              displayDataUrl: canvas.toDataURL('image/jpeg', 0.72),
+              displayDataUrl: canvas.toDataURL('image/jpeg', 0.62),
               ocrDataUrl: ocrCanvas.toDataURL('image/png')
             });
           };
@@ -1523,25 +1540,21 @@
     function parseYautepecOcrText(rawText) {
       const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 1);
 
-      // 1. Buscar Folio (ej. Nº 547, 546, 545, 544)
       let folio = "";
       const folioMatch = rawText.match(/(?:N[º°o]\s*|VALE\s*)(\d{3,5})/i) || rawText.match(/\b(5\d{2})\b/);
       if (folioMatch) folio = folioMatch[1];
 
-      // 2. Buscar Solicitante después de NOMBRE DEL SOLICITANTE
       let solicitante = "";
       const solBlock = rawText.match(/SOLICITANTE[:\s]+([A-ZÁÉÍÓÚÑ\s]{5,40})/i);
       if (solBlock) {
         solicitante = solBlock[1].split('\n')[0].replace(/AREA|DEPARTAMENTO|COMMEX|MIERCOLES|JUEVES|VIERNES|LUNES|MARTES|SABADO/gi, '').trim();
       }
 
-      // 3. Buscar Proyecto / Commex
       let proyecto = "9260226 - Taller Mecánico San Miguel";
       if (/9260226|TALLER|SAN MIGUEL/i.test(rawText)) {
         proyecto = "9260226 - Taller Mecánico San Miguel";
       }
 
-      // 4. Extraer renglones de cantidad + material
       const items = [];
       const rowRegex = /^(\d{1,3})\s*[-.\s]*(PZAS?|PZS?|PZ|PAR(?:ES)?|KG|MTS?|ROLLO|JUEGO|CAJA)?\s+(.{3,})$/i;
 
@@ -1593,36 +1606,19 @@
           }
           const parsed = parseYautepecOcrText(rawText);
 
-          // Si el usuario subió 1 sola foto, abrimos el modal para confirmar rápido; si subió varias en lote, abrimos la primera o guardamos las listas
-          if (files.length === 1) {
-            progressBox.classList.add('hidden');
-            openYautepecModal({
-              id: `YAU-${Date.now().toString().slice(-5)}`,
-              folio: parsed.folio || '',
-              fecha: selectedDate,
-              area: 'ALMACEN YAUTEPEC',
-              solicitante: parsed.solicitante || '',
-              proyecto: parsed.proyecto,
-              foto: displayDataUrl,
-              rawOcr: rawText,
-              items: parsed.items.length ? parsed.items : [{ cantidad: 1, unidad: 'PZA', descripcion: '' }]
-            });
-          } else {
-            // En carga múltiple (ej. las 4 fotos de hoy de un jalón), abrimos modal una por una esperando confirmación
-            progressBox.classList.add('hidden');
-            openYautepecModal({
-              id: `YAU-${Date.now().toString().slice(-5)}-${i}`,
-              folio: parsed.folio || '',
-              fecha: selectedDate,
-              area: 'ALMACEN YAUTEPEC',
-              solicitante: parsed.solicitante || '',
-              proyecto: parsed.proyecto,
-              foto: displayDataUrl,
-              rawOcr: rawText,
-              items: parsed.items.length ? parsed.items : [{ cantidad: 1, unidad: 'PZA', descripcion: '' }]
-            });
-            break;
-          }
+          progressBox.classList.add('hidden');
+          openYautepecModal({
+            id: `YAU-${Date.now().toString().slice(-5)}-${i}`,
+            folio: parsed.folio || '',
+            fecha: selectedDate,
+            area: 'ALMACEN YAUTEPEC',
+            solicitante: parsed.solicitante || '',
+            proyecto: parsed.proyecto,
+            foto: displayDataUrl,
+            rawOcr: rawText,
+            items: parsed.items.length ? parsed.items : [{ cantidad: 1, unidad: 'PZA', descripcion: '' }]
+          });
+          break;
         } catch (err) {
           console.error("Error leyendo imagen OCR:", err);
           progressBox.classList.add('hidden');
@@ -1643,17 +1639,17 @@
         ctx.translate(canvas.width / 2, canvas.height / 2);
         ctx.rotate((deg * Math.PI) / 180);
         ctx.drawImage(img, -img.width / 2, -img.height / 2);
-        tempYauPhoto = canvas.toDataURL('image/jpeg', 0.75);
+        tempYauPhoto = canvas.toDataURL('image/jpeg', 0.65);
         document.getElementById('yauPreviewImg').src = tempYauPhoto;
       };
       img.src = tempYauPhoto;
     };
 
-    window.reRunYautepecOcr = async function() {
+    window.reRunYautepecOcr = async function(ev) {
       if (!tempYauPhoto || !window.Tesseract) return;
-      const btn = event.target;
-      const origText = btn.textContent;
-      btn.textContent = "Leyendo...";
+      const btn = ev?.target;
+      const origText = btn ? btn.textContent : '';
+      if (btn) btn.textContent = "Leyendo...";
       try {
         const res = await Tesseract.recognize(tempYauPhoto, 'spa');
         const rawText = res.data.text || "";
@@ -1666,7 +1662,7 @@
           parsed.items.forEach(it => addYauItemRow(it));
         }
       } finally {
-        btn.textContent = origText;
+        if (btn) btn.textContent = origText;
       }
     };
 
@@ -1824,7 +1820,6 @@
         return true;
       }).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (parseInt(b.folio) || 0) - (parseInt(a.folio) || 0));
 
-      // KPIs Yautepec
       let totalRenglones = 0;
       let totalPiezas = 0;
       const diasUnicos = new Set(valesFiltrados.map(v => v.fecha));
@@ -1850,7 +1845,6 @@
         `).join('');
       }
 
-      // Tabla 1: Detalle por Día y Vale
       const dailyBody = document.getElementById('yautepecDailyTableBody');
       if (dailyBody) {
         const flatRows = [];
@@ -1880,7 +1874,6 @@
         `).join('') : `<tr><td colspan="8" class="p-6 text-center text-xs text-slate-400">No hay consumos registrados en Yautepec con ese filtro.</td></tr>`;
       }
 
-      // Tabla 2: Control Total Acumulado por Material
       const totalBody = document.getElementById('yautepecTotalTableBody');
       if (totalBody) {
         const grouped = {};
@@ -2028,7 +2021,7 @@
       event.target.value = "";
     };
 
-    // COMPRESIÓN AUTOMÁTICA DE FOTOS DE CELULAR (~50 KB)
+    // COMPRESIÓN AUTOMÁTICA DE FOTOS DE CELULAR (~45 KB)
     window.handlePhotoCapture = function(event, previewContainerId) {
       const file = event.target.files[0];
       if (!file) return;
@@ -2037,13 +2030,13 @@
         const img = new Image();
         img.onload = async function() {
           const canvas = document.createElement('canvas');
-          const maxW = 900;
+          const maxW = 850;
           const scale = img.width > maxW ? maxW / img.width : 1;
           canvas.width = img.width * scale;
           canvas.height = img.height * scale;
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.65);
+          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
 
           if (previewContainerId === 'comPhotosPreview') {
             tempComPhotos.push(compressedDataUrl);
@@ -2141,7 +2134,6 @@
       const sinEnviar = state.movimientos.filter(m => m.tipo !== 'ENTRADA' && (m.estadoLogistico.includes('En piso') || m.estadoLogistico.includes('programado')));
       const enviosHoy = state.movimientos.filter(m => m.fechaEnvio === todayStr && !m.estadoLogistico.includes('Entregado'));
       const comsAclarar = state.coms.filter(c => c.requiereAclaracion);
-      const invDanados = state.inventario.filter(i => i.condicion.includes('Dañado') || i.condicion.includes('Reparación'));
 
       const kpis = [
         { label: "COMs Registradas", val: state.coms.length, color: "text-slate-900", tab: "coms" },
@@ -2992,7 +2984,7 @@
         nombre: document.getElementById('userNameInput').value.trim() || 'Usuario',
         rol: document.getElementById('userRoleInput').value
       };
-      localStorage.setItem('anky_user', JSON.stringify(state.user));
+      try { localStorage.setItem('anky_user', JSON.stringify(state.user)); } catch (_) {}
       closeModal('userModal');
       renderAll();
     };
@@ -3001,8 +2993,10 @@
       const cName = document.getElementById('cloudinaryNameInput').value.trim();
       const cPreset = document.getElementById('cloudinaryPresetInput').value.trim();
 
-      if (cName) localStorage.setItem('anky_cloud_name', cName);
-      if (cPreset) localStorage.setItem('anky_cloud_preset', cPreset);
+      try {
+        if (cName) localStorage.setItem('anky_cloud_name', cName);
+        if (cPreset) localStorage.setItem('anky_cloud_preset', cPreset);
+      } catch (_) {}
 
       initCloudConnection();
       closeModal('configModal');

@@ -8,6 +8,8 @@
   <script src="https://cdn.tailwindcss.com"></script>
   <!-- PDF.js para leer automáticamente los PDFs de Evidence ERP -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+  <!-- Tesseract.js para leer automáticamente las fotos de los vales escritos a mano de Yautepec -->
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
   <!-- Iconos limpios -->
   <script src="https://unpkg.com/lucide@latest"></script>
   <style>
@@ -29,7 +31,7 @@
         </div>
         <div>
           <h1 class="text-base font-bold text-slate-900 leading-tight">ANKY Almacén Central</h1>
-          <p class="text-xs text-slate-500">Cuernavaca → Minas, Talleres y Resguardo Físico</p>
+          <p class="text-xs text-slate-500">Cuernavaca → Minas, Talleres y Consumos Yautepec</p>
         </div>
       </div>
 
@@ -37,7 +39,7 @@
       <div class="hidden md:flex items-center flex-1 max-w-md mx-6">
         <div class="relative w-full">
           <i data-lucide="search" class="w-4 h-4 text-slate-400 absolute left-3 top-2.5"></i>
-          <input id="globalSearch" type="text" oninput="renderAll()" placeholder="Buscar COM, folio, herramienta, ubicación, responsable..." 
+          <input id="globalSearch" type="text" oninput="renderAll()" placeholder="Buscar COM, folio, soldadura, solicitante, vale..." 
             class="w-full pl-9 pr-4 py-1.5 text-sm bg-slate-100 border border-transparent rounded-lg focus:bg-white focus:border-slate-300 focus:outline-none transition" />
         </div>
       </div>
@@ -59,12 +61,12 @@
 
     <!-- Buscador móvil -->
     <div class="md:hidden px-4 pb-3">
-      <input id="globalSearchMobile" type="text" oninput="syncMobileSearch(this.value)" placeholder="Buscar COM, folio, material, inventario..." 
+      <input id="globalSearchMobile" type="text" oninput="syncMobileSearch(this.value)" placeholder="Buscar COM, folio, material, vales..." 
         class="w-full px-3 py-1.5 text-sm bg-slate-100 border border-slate-200 rounded-lg focus:bg-white focus:outline-none" />
     </div>
 
     <!-- Navegación Desktop -->
-    <nav class="hidden md:flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-6 text-sm text-slate-500 overflow-x-auto">
+    <nav class="hidden md:flex max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 gap-5 text-sm text-slate-500 overflow-x-auto">
       <button onclick="switchTab('dashboard')" id="tab-dashboard" class="py-3 tab-active flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="layout-dashboard" class="w-4 h-4"></i> Dashboard
       </button>
@@ -75,14 +77,18 @@
         <i data-lucide="arrow-left-right" class="w-4 h-4"></i> Entradas y Salidas Evidence
       </button>
       <button onclick="switchTab('inventario')" id="tab-inventario" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="boxes" class="w-4 h-4"></i> Inventario Físico (Piso/Resguardo)
+        <i data-lucide="boxes" class="w-4 h-4"></i> Inventario Físico
         <span id="badgeInventario" class="bg-slate-100 text-slate-700 text-xs px-1.5 py-0.2 rounded-full font-bold">0</span>
+      </button>
+      <button onclick="switchTab('yautepec')" id="tab-yautepec" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
+        <i data-lucide="clipboard-list" class="w-4 h-4"></i> Consumos de Yautepec
+        <span id="badgeYautepec" class="bg-indigo-50 text-indigo-700 text-xs px-1.5 py-0.2 rounded-full font-bold">0</span>
       </button>
       <button onclick="switchTab('logistica')" id="tab-logistica" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
         <i data-lucide="truck" class="w-4 h-4"></i> Calendario Logística
       </button>
       <button onclick="switchTab('aclaraciones')" id="tab-aclaraciones" class="py-3 hover:text-slate-900 flex items-center gap-2 whitespace-nowrap">
-        <i data-lucide="help-circle" class="w-4 h-4"></i> Aclaraciones Jefes y Bitácora
+        <i data-lucide="help-circle" class="w-4 h-4"></i> Jefes y Bitácora
         <span id="badgeAclaraciones" class="hidden bg-red-100 text-red-700 text-xs px-1.5 py-0.2 rounded-full font-bold">0</span>
       </button>
     </nav>
@@ -94,23 +100,28 @@
     <!-- BARRA DE ACCIONES RÁPIDAS -->
     <div class="flex flex-wrap items-center justify-between gap-3 mb-6 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
       <div>
-        <h2 class="text-sm font-semibold text-slate-900">Captura Rápida e Inteligente (Evidence ERP + Control de Piso)</h2>
-        <p class="text-xs text-slate-500">Sube un PDF de Evidence para lectura automática o registra inventario físico en resguardo, taller o reparación.</p>
+        <h2 class="text-sm font-semibold text-slate-900">Captura Rápida e Inteligente (Evidence ERP + Vales Yautepec + Piso)</h2>
+        <p class="text-xs text-slate-500">Lee PDFs de Evidence o sube las fotos de vales de salida de Yautepec para extraer materiales automáticamente.</p>
       </div>
       <div class="flex flex-wrap gap-2">
         <label class="cursor-pointer bg-slate-900 hover:bg-slate-800 text-white text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-2 shadow-sm transition">
           <i data-lucide="file-up" class="w-4 h-4"></i>
-          <span>Leer PDF de Evidence</span>
+          <span>Leer PDF Evidence</span>
           <input type="file" accept="application/pdf" class="hidden" onchange="handlePdfAutoRead(event)" />
         </label>
-        <button onclick="openComModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5">
-          <i data-lucide="plus" class="w-4 h-4"></i> Nueva COM
+        <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-2 shadow-sm transition">
+          <i data-lucide="scan-text" class="w-4 h-4"></i>
+          <span>Leer Foto Vale Yautepec</span>
+          <input type="file" accept="image/*" multiple class="hidden" onchange="handleYautepecValeUpload(event)" />
+        </label>
+        <button onclick="openComModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1">
+          <i data-lucide="plus" class="w-3.5 h-3.5"></i> COM
         </button>
-        <button onclick="openMovModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5">
-          <i data-lucide="plus-circle" class="w-4 h-4"></i> Nuevo Movimiento
+        <button onclick="openMovModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1">
+          <i data-lucide="plus-circle" class="w-3.5 h-3.5"></i> Movimiento
         </button>
-        <button onclick="openInvModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3.5 py-2 rounded-lg flex items-center gap-1.5 shadow-sm">
-          <i data-lucide="package-plus" class="w-4 h-4"></i> + Inventario Físico
+        <button onclick="openInvModal()" class="bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1 shadow-sm">
+          <i data-lucide="package-plus" class="w-3.5 h-3.5"></i> Inv. Físico
         </button>
       </div>
     </div>
@@ -166,7 +177,7 @@
       <div id="comsListContainer" class="space-y-3"></div>
     </section>
 
-    <!-- VISTA 3: MOVIMIENTOS EVIDENCE (CON FILTROS Y ORDENAMIENTO MULTICRITERIO) -->
+    <!-- VISTA 3: MOVIMIENTOS EVIDENCE (CON FILTROS, ORDENAMIENTO Y MINIATURAS DE FOTOS) -->
     <section id="view-movimientos" class="hidden space-y-4">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-3">
         <div class="flex flex-wrap items-center justify-between gap-2">
@@ -253,7 +264,7 @@
               <th onclick="toggleMovTableSort('comId')" class="py-3 px-4 sortable">COM Origen ↕</th>
               <th onclick="toggleMovTableSort('destino')" class="py-3 px-4 sortable">Destino Físico ↕</th>
               <th onclick="toggleMovTableSort('estatusEvidence')" class="py-3 px-4 sortable">Estatus Evidence ↕</th>
-              <th onclick="toggleMovTableSort('estadoLogistico')" class="py-3 px-4 sortable">Estado Físico / Logística ↕</th>
+              <th onclick="toggleMovTableSort('estadoLogistico')" class="py-3 px-4 sortable">Estado Físico / Fotos ↕</th>
               <th onclick="toggleMovTableSort('fechaEnvio')" class="py-3 px-4 sortable">Fecha Envío ↕</th>
               <th class="py-3 px-4 text-right">Acciones</th>
             </tr>
@@ -271,7 +282,7 @@
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
             <h3 class="text-sm font-bold text-slate-900">Control de Inventario Físico, Resguardos y Logística Inversa (Cuernavaca)</h3>
-            <p class="text-xs text-slate-500">Haz clic sobre cualquier miniatura fotográfica en la tabla para ampliar o descargar la foto sin que se abra en blanco.</p>
+            <p class="text-xs text-slate-500">Materiales en piso sin COM o remanentes: insumos de taller exterior, paquetes de oficinas, herramienta dañada de mina, devoluciones y resguardos.</p>
           </div>
           <div class="flex flex-wrap gap-2">
             <button onclick="exportInventarioCSV()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
@@ -337,7 +348,6 @@
         </div>
       </div>
 
-      <!-- Tabla de Inventario Físico -->
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
         <table class="w-full text-left border-collapse">
           <thead>
@@ -358,7 +368,117 @@
       </div>
     </section>
 
-    <!-- VISTA 5: CALENDARIO Y TABLERO DE LOGÍSTICA -->
+    <!-- VISTA 5: CONSUMOS DE YAUTEPEC (LECTURA AUTOMÁTICA DE VALES DE SALIDA ESCRITOS A MANO) -->
+    <section id="view-yautepec" class="hidden space-y-5">
+      <!-- Tarjetas Resumen Yautepec -->
+      <div class="grid grid-cols-2 sm:grid-cols-4 gap-3" id="yautepecKpis"></div>
+
+      <!-- Panel Principal de Carga y Extracción Automática -->
+      <div class="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-4">
+        <div class="flex flex-wrap items-center justify-between gap-4">
+          <div>
+            <h3 class="text-base font-bold text-slate-900 flex items-center gap-2">
+              <span class="w-2.5 h-2.5 rounded-full bg-indigo-600"></span>
+              Consumos de Almacén Yautepec (Vales de Salida de Material)
+            </h3>
+            <p class="text-xs text-slate-500 mt-0.5">
+              Descarga las fotos de WhatsApp que envía Marco, selecciona la fecha del reporte y súbelas. El sistema leerá la hoja automáticamente y sumará todo en las tablas de control diario y acumulado.
+            </p>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="exportYautepecCSV()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
+              <i data-lucide="download" class="w-4 h-4"></i> Exportar Excel (CSV)
+            </button>
+            <button onclick="openYautepecModal()" class="bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 text-xs font-medium px-3 py-2 rounded-lg flex items-center gap-1.5">
+              <i data-lucide="plus" class="w-4 h-4"></i> Captura Manual Vale
+            </button>
+          </div>
+        </div>
+
+        <!-- Zona de Subida Rápida con Fecha por Defecto Hoy -->
+        <div class="bg-indigo-50/60 border border-indigo-200 rounded-xl p-4 flex flex-wrap items-center justify-between gap-4">
+          <div class="flex flex-wrap items-center gap-3">
+            <div>
+              <label class="text-[11px] font-bold text-indigo-950 block mb-1">1. Fecha del Consumo (Hoy por defecto):</label>
+              <input type="date" id="yautepecUploadDate" class="border border-indigo-300 rounded-lg px-3 py-2 text-xs font-bold text-slate-900 bg-white" />
+            </div>
+            <div>
+              <label class="text-[11px] font-bold text-indigo-950 block mb-1">2. Subir Foto(s) de Vale de Marco (WhatsApp):</label>
+              <label class="cursor-pointer bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-4 py-2 rounded-lg inline-flex items-center gap-2 shadow-sm transition">
+                <i data-lucide="camera" class="w-4 h-4"></i>
+                <span>Seleccionar Foto(s) de Vale y Extraer Texto</span>
+                <input type="file" accept="image/*" multiple class="hidden" onchange="handleYautepecValeUpload(event)" />
+              </label>
+            </div>
+          </div>
+
+          <div id="ocrProgressBox" class="hidden bg-white border border-indigo-200 rounded-lg px-3.5 py-2 text-xs flex items-center gap-2.5 shadow-sm">
+            <span class="w-3 h-3 rounded-full bg-indigo-600 animate-ping"></span>
+            <span id="ocrProgressText" class="font-semibold text-indigo-900">Leyendo letra del vale...</span>
+          </div>
+        </div>
+
+        <!-- Filtros de Vista: Control por Día vs Control Total Acumulado -->
+        <div class="flex flex-wrap items-center justify-between gap-3 pt-2 border-t border-slate-100">
+          <div class="flex flex-wrap items-center gap-2">
+            <button onclick="setYautepecSubView('DIARIO')" id="btnYauDiario" class="text-xs px-3.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold">
+              📅 Detalle por Día y Vale
+            </button>
+            <button onclick="setYautepecSubView('TOTAL')" id="btnYauTotal" class="text-xs px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50">
+              📊 Control Total Acumulado por Material
+            </button>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2 text-xs">
+            <label class="text-slate-500 font-medium">Filtrar fecha:</label>
+            <input type="date" id="filterYauDate" onchange="renderAll()" class="border border-slate-300 rounded-lg px-2.5 py-1.5" />
+            <button onclick="document.getElementById('filterYauDate').value=''; renderAll();" class="text-slate-500 hover:text-slate-900 underline">Ver todas las fechas</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- SUB-VISTA A: TABLA DE CONTROL POR DÍA (CADA RENGLÓN CONSUMIDO Y SU VALE ORIGINAL) -->
+      <div id="yautepecDailyView" class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500 bg-slate-50">
+              <th class="py-3 px-4">Fecha</th>
+              <th class="py-3 px-4">Folio Vale</th>
+              <th class="py-3 px-4">Cant. / Unidad</th>
+              <th class="py-3 px-4">Material Consumido</th>
+              <th class="py-3 px-4">Solicitante</th>
+              <th class="py-3 px-4">Proyecto / Commex</th>
+              <th class="py-3 px-4">Hoja Original</th>
+              <th class="py-3 px-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+          <tbody id="yautepecDailyTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+        </table>
+      </div>
+
+      <!-- SUB-VISTA B: TABLA DE CONTROL TOTAL ACUMULADO POR MATERIAL -->
+      <div id="yautepecTotalView" class="hidden bg-white rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+        <div class="px-4 py-3 border-b border-slate-100 bg-slate-50 flex items-center justify-between">
+          <span class="text-xs font-bold text-slate-800">Resumen Total de Consumibles Yautepec (Agrupado y Sumado Automáticamente)</span>
+          <span class="text-[11px] text-slate-500">Ideal para descargar salidas en Evidence ERP</span>
+        </div>
+        <table class="w-full text-left border-collapse">
+          <thead>
+            <tr class="border-b border-slate-200 text-[11px] font-semibold uppercase text-slate-500 bg-slate-50">
+              <th class="py-3 px-4">Material Consumido</th>
+              <th class="py-3 px-4">Unidad</th>
+              <th class="py-3 px-4">Cantidad Total Consumida</th>
+              <th class="py-3 px-4">Vales / Días en que salió</th>
+              <th class="py-3 px-4">Principales Solicitantes</th>
+            </tr>
+          </thead>
+          <tbody id="yautepecTotalTableBody" class="divide-y divide-slate-100 text-xs"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- VISTA 6: CALENDARIO Y TABLERO DE LOGÍSTICA -->
     <section id="view-logistica" class="hidden space-y-6">
       <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -376,7 +496,7 @@
       <div id="logisticsColumns" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
     </section>
 
-    <!-- VISTA 6: ACLARACIONES DE JEFES Y BITÁCORA -->
+    <!-- VISTA 7: ACLARACIONES DE JEFES Y BITÁCORA -->
     <section id="view-aclaraciones" class="hidden grid grid-cols-1 lg:grid-cols-2 gap-6">
       <div class="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100 bg-red-50/50">
@@ -402,12 +522,12 @@
     <button onclick="switchTab('dashboard')" class="flex flex-col items-center gap-0.5"><i data-lucide="layout-dashboard" class="w-4 h-4"></i>Inicio</button>
     <button onclick="switchTab('coms')" class="flex flex-col items-center gap-0.5"><i data-lucide="file-text" class="w-4 h-4"></i>COMs</button>
     <button onclick="switchTab('movimientos')" class="flex flex-col items-center gap-0.5"><i data-lucide="arrow-left-right" class="w-4 h-4"></i>Evidence</button>
-    <button onclick="switchTab('inventario')" class="flex flex-col items-center gap-0.5"><i data-lucide="boxes" class="w-4 h-4"></i>Inventario</button>
-    <button onclick="switchTab('logistica')" class="flex flex-col items-center gap-0.5"><i data-lucide="truck" class="w-4 h-4"></i>Logística</button>
-    <button onclick="switchTab('aclaraciones')" class="flex flex-col items-center gap-0.5"><i data-lucide="help-circle" class="w-4 h-4"></i>Jefes</button>
+    <button onclick="switchTab('inventario')" class="flex flex-col items-center gap-0.5"><i data-lucide="boxes" class="w-4 h-4"></i>Piso</button>
+    <button onclick="switchTab('yautepec')" class="flex flex-col items-center gap-0.5"><i data-lucide="clipboard-list" class="w-4 h-4"></i>Yautepec</button>
+    <button onclick="switchTab('logistica')" class="flex flex-col items-center gap-0.5"><i data-lucide="truck" class="w-4 h-4"></i>Envíos</button>
   </nav>
 
-  <!-- MODAL VISOR DE FOTOGRAFÍAS A PANTALLA COMPLETA (EVITA ABOUT:BLANK) -->
+  <!-- MODAL VISOR DE FOTOGRAFÍAS A PANTALLA COMPLETA (EVITA ABOUT:BLANK EN COMs, MOVIMIENTOS, INVENTARIO Y VALES) -->
   <div id="photoLightboxModal" class="hidden fixed inset-0 z-[90] bg-slate-950/90 flex flex-col items-center justify-center p-4" onclick="if(event.target === this) closePhotoLightbox()">
     <div class="flex flex-wrap items-center justify-between gap-3 w-full max-w-4xl mb-3">
       <span class="text-white text-xs font-semibold flex items-center gap-1.5">
@@ -423,6 +543,106 @@
       </div>
     </div>
     <img id="lightboxImageEl" src="" alt="Evidencia fotográfica" class="max-w-full max-h-[82vh] rounded-xl shadow-2xl border border-slate-700 object-contain bg-black" />
+  </div>
+
+  <!-- MODAL: REVISAR / CONFIRMAR VALE DE SALIDA DE YAUTEPEC (CON OCR AUTOMÁTICO Y ROTACIÓN DE HOJA) -->
+  <div id="yautepecModal" class="hidden fixed inset-0 z-50 modal-bg flex items-center justify-center p-4 overflow-y-auto">
+    <div class="bg-white rounded-2xl max-w-5xl w-full p-6 shadow-xl border border-slate-200 my-6 max-h-[94vh] overflow-y-auto">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-100">
+        <div>
+          <h3 class="text-base font-bold text-slate-900">Vale de Salida de Material — Almacén Yautepec</h3>
+          <p class="text-xs text-slate-500">Verifica los datos extraídos de la letra de Marco, gira la imagen si llegó acostada y guarda para sumar al control diario.</p>
+        </div>
+        <button onclick="closeModal('yautepecModal')" class="text-slate-400 hover:text-slate-700">✕</button>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 mt-4">
+        <!-- Columna Izquierda: Vista previa de la hoja con botón para rotar y volver a leer OCR -->
+        <div class="lg:col-span-5 bg-slate-50 rounded-xl border border-slate-200 p-3 flex flex-col items-center justify-between space-y-2.5">
+          <div class="w-full flex items-center justify-between text-xs">
+            <span class="font-bold text-slate-700">Hoja Escaneada / Foto WhatsApp</span>
+            <div class="flex gap-1">
+              <button type="button" onclick="rotateYautepecPhoto(-90)" class="bg-white border border-slate-300 hover:bg-slate-100 px-2 py-1 rounded text-[11px] font-medium" title="Girar 90° Izquierda">↺ 90°</button>
+              <button type="button" onclick="rotateYautepecPhoto(90)" class="bg-white border border-slate-300 hover:bg-slate-100 px-2 py-1 rounded text-[11px] font-medium" title="Girar 90° Derecha">↻ 90°</button>
+              <button type="button" onclick="reRunYautepecOcr()" class="bg-indigo-600 text-white hover:bg-indigo-700 px-2.5 py-1 rounded text-[11px] font-semibold">Re-leer Texto</button>
+            </div>
+          </div>
+
+          <div id="yauPhotoBox" class="w-full h-64 bg-slate-900 rounded-lg overflow-hidden flex items-center justify-center border border-slate-300">
+            <img id="yauPreviewImg" src="" class="max-w-full max-h-full object-contain cursor-pointer hidden" onclick="openPhotoLightbox(this.src)" title="Clic para ampliar en pantalla completa" />
+            <span id="yauNoPhotoMsg" class="text-xs text-slate-400">Sin imagen adjunta (Captura manual)</span>
+          </div>
+
+          <div class="w-full">
+            <label class="text-[10px] font-semibold text-slate-500 block mb-1">Texto crudo detectado por OCR (Referencia):</label>
+            <textarea id="yauRawOcrText" rows="3" readonly class="w-full bg-white border border-slate-200 rounded p-2 text-[10px] font-mono text-slate-600"></textarea>
+          </div>
+        </div>
+
+        <!-- Columna Derecha: Formulario estructurado del Vale -->
+        <form id="yauForm" onsubmit="saveYautepecVale(event)" class="lg:col-span-7 space-y-3.5 text-xs">
+          <input type="hidden" id="yauId" />
+
+          <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Fecha de Consumo *</label>
+              <input type="date" id="yauFecha" required class="w-full border border-slate-300 rounded-lg px-3 py-2 font-bold" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Folio del Vale (No. Rojo) *</label>
+              <input type="text" id="yauFolio" required placeholder="Ej. 544, 545, 546, 547" class="w-full border border-slate-300 rounded-lg px-3 py-2 font-bold text-red-700" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Área / Almacén</label>
+              <input type="text" id="yauArea" value="ALMACEN YAUTEPEC" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Nombre del Solicitante *</label>
+              <input type="text" id="yauSolicitante" required placeholder="Ej. Juan García Cruz, Abimael Antunes..." class="w-full border border-slate-300 rounded-lg px-3 py-2 font-semibold" />
+            </div>
+            <div>
+              <label class="font-semibold text-slate-700 block mb-1">Commex o Proyecto</label>
+              <input type="text" id="yauProyecto" value="9260226 - Taller Mecánico San Miguel" placeholder="Ej. 9260226 - Taller Mecánico San Miguel" class="w-full border border-slate-300 rounded-lg px-3 py-2" />
+            </div>
+          </div>
+
+          <!-- Botones rápidos de consumibles frecuentes de Marco (1 clic si la letra está difícil) -->
+          <div class="bg-slate-50 p-2.5 rounded-lg border border-slate-200">
+            <span class="text-[10px] font-bold uppercase text-slate-500 block mb-1.5">Atajos de Consumibles Frecuentes Yautepec (1 clic para agregar):</span>
+            <div class="flex flex-wrap gap-1.5">
+              <button type="button" onclick="addYauItemRow({cantidad: 1, unidad: 'PZA', descripcion: 'Soldadura 7018 - 1/8'})" class="text-[11px] bg-white hover:bg-indigo-50 border border-slate-300 px-2 py-1 rounded font-medium">+ Soldadura 7018 - 1/8</button>
+              <button type="button" onclick="addYauItemRow({cantidad: 1, unidad: 'PZA', descripcion: 'Soldadura 7018 - 5/32'})" class="text-[11px] bg-white hover:bg-indigo-50 border border-slate-300 px-2 py-1 rounded font-medium">+ Soldadura 7018 - 5/32</button>
+              <button type="button" onclick="addYauItemRow({cantidad: 1, unidad: 'PZA', descripcion: 'Spray Antichispas'})" class="text-[11px] bg-white hover:bg-indigo-50 border border-slate-300 px-2 py-1 rounded font-medium">+ Spray Antichispas</button>
+              <button type="button" onclick="addYauItemRow({cantidad: 1, unidad: 'PZA', descripcion: 'Vidrio claro para careta de soldador'})" class="text-[11px] bg-white hover:bg-indigo-50 border border-slate-300 px-2 py-1 rounded font-medium">+ Vidrio claro careta</button>
+              <button type="button" onclick="addYauItemRow({cantidad: 1, unidad: 'PZA', descripcion: 'Vidrio oscuro del #11'})" class="text-[11px] bg-white hover:bg-indigo-50 border border-slate-300 px-2 py-1 rounded font-medium">+ Vidrio oscuro #11</button>
+              <button type="button" onclick="addYauItemRow({cantidad: 1, unidad: 'PAR', descripcion: 'Par de filtros para mascarilla'})" class="text-[11px] bg-white hover:bg-indigo-50 border border-slate-300 px-2 py-1 rounded font-medium">+ Filtros mascarilla</button>
+            </div>
+          </div>
+
+          <!-- Lista de materiales del vale -->
+          <div>
+            <div class="flex items-center justify-between mb-1.5">
+              <label class="font-bold text-slate-800">Materiales Consumidos en este Vale</label>
+              <button type="button" onclick="addYauItemRow()" class="text-xs bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1 rounded font-medium">+ Renglón vacío</button>
+            </div>
+            <div id="yauItemsContainer" class="space-y-2 max-h-48 overflow-y-auto pr-1"></div>
+          </div>
+
+          <div class="flex items-center justify-between pt-3 border-t border-slate-100">
+            <button type="button" onclick="deleteCurrentYauVale()" class="text-red-600 hover:text-red-800 font-semibold px-3 py-2 rounded-lg hover:bg-red-50">
+              🗑️ Eliminar Vale
+            </button>
+            <div class="flex gap-2">
+              <button type="button" onclick="closeModal('yautepecModal')" class="px-4 py-2 rounded-lg border border-slate-300 text-slate-600">Cancelar</button>
+              <button type="submit" class="px-5 py-2 rounded-lg bg-indigo-600 text-white font-semibold hover:bg-indigo-700">Guardar Consumo Yautepec</button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
   </div>
 
   <!-- MODAL: CREAR / EDITAR COM -->
@@ -491,7 +711,6 @@
           </label>
         </div>
 
-        <!-- Materiales de la COM -->
         <div class="border-t border-slate-200 pt-3">
           <div class="flex items-center justify-between mb-2">
             <label class="font-bold text-slate-800">Partidas / Materiales de la COM</label>
@@ -500,7 +719,6 @@
           <div id="comItemsContainer" class="space-y-2 max-h-52 overflow-y-auto pr-1"></div>
         </div>
 
-        <!-- Adjuntar PDF o Foto desde Celular -->
         <div class="border-t border-slate-200 pt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
             <label class="font-semibold text-slate-700 block mb-1">Enlace PDF de la COM (o subir archivo)</label>
@@ -841,9 +1059,11 @@
     let currentDestinationFilter = null;
     let movSortField = 'fecha';
     let movSortDir = 'desc';
+    let yauSubView = 'DIARIO';
     let tempComPhotos = [];
     let tempMovPhotos = [];
     let tempInvPhotos = [];
+    let tempYauPhoto = "";
     let db = null;
 
     // CREDENCIALES FIJAS DE FIREBASE ANKY
@@ -1034,12 +1254,73 @@
       }
     ];
 
+    // Ejemplos reales de los vales de salida de Yautepec compartidos por Marco
+    const INITIAL_YAUTEPEC_VALES = [
+      {
+        id: "YAU-547",
+        folio: "547",
+        fecha: "2026-11-18",
+        area: "ALMACEN YAUTEPEC",
+        solicitante: "Juan García Cruz",
+        proyecto: "9260226 - Taller Mecánico San Miguel",
+        foto: "",
+        rawOcr: "VALE 547 - 18/11/26 - JUAN GARCIA CRUZ",
+        items: [
+          { cantidad: 1, unidad: "PZA", descripcion: "Spray Antichispas" },
+          { cantidad: 1, unidad: "PZA", descripcion: "Vidrio claro para careta de soldador" },
+          { cantidad: 1, unidad: "PZA", descripcion: "Vidrio oscuro del #11" }
+        ]
+      },
+      {
+        id: "YAU-546",
+        folio: "546",
+        fecha: "2026-11-18",
+        area: "ALMACEN YAUTEPEC",
+        solicitante: "José Avilez Osorio",
+        proyecto: "9260226 - Taller Mecánico San Miguel",
+        foto: "",
+        rawOcr: "VALE 546 - 18/11/26 - JOSE AVILEZ OSORIO",
+        items: [
+          { cantidad: 60, unidad: "PZAS", descripcion: "Soldadura 7018 - 1/8" }
+        ]
+      },
+      {
+        id: "YAU-545",
+        folio: "545",
+        fecha: "2026-11-18",
+        area: "ALMACEN YAUTEPEC",
+        solicitante: "Abimael Antunes Sandoval",
+        proyecto: "9260226 - Taller Mecánico San Miguel",
+        foto: "",
+        rawOcr: "VALE 545 - 18/11/26 - ABIMAEL ANTUNES SANDOVAL",
+        items: [
+          { cantidad: 80, unidad: "PZS", descripcion: "Soldadura 7018 - 1/8" },
+          { cantidad: 1, unidad: "PAR", descripcion: "Par de filtros para mascarilla" },
+          { cantidad: 17, unidad: "PZAS", descripcion: "Soldadura 7018 - 5/32" }
+        ]
+      },
+      {
+        id: "YAU-544",
+        folio: "544",
+        fecha: "2026-11-18",
+        area: "ALMACEN YAUTEPEC",
+        solicitante: "Samuel Omar Greer Benavides",
+        proyecto: "9260226 - Taller Mecánico San Miguel",
+        foto: "",
+        rawOcr: "VALE 544 - 18/11/26 - SAMUEL OMAR GREER BENAVIDES",
+        items: [
+          { cantidad: 20, unidad: "PZAS", descripcion: "Soldadura 7018 - 1/8" }
+        ]
+      }
+    ];
+
     let state = {
       coms: JSON.parse(localStorage.getItem('anky_coms')) || INITIAL_COMS,
       movimientos: JSON.parse(localStorage.getItem('anky_movs')) || INITIAL_MOVS,
       inventario: JSON.parse(localStorage.getItem('anky_inv')) || INITIAL_INVENTARIO,
+      yautepecVales: JSON.parse(localStorage.getItem('anky_yau')) || INITIAL_YAUTEPEC_VALES,
       logs: JSON.parse(localStorage.getItem('anky_logs')) || [
-        { fecha: new Date().toLocaleString(), usuario: "Sistema", accion: "Sistema ANKY inicializado con ejemplos reales de Evidence ERP e Inventario Físico." }
+        { fecha: new Date().toLocaleString(), usuario: "Sistema", accion: "Sistema ANKY inicializado con Consumos de Yautepec, Inventario Físico y Evidence ERP." }
       ],
       user: JSON.parse(localStorage.getItem('anky_user')) || { nombre: "Luis (Almacén Cuernavaca)", rol: "Responsable Cuernavaca" }
     };
@@ -1048,6 +1329,7 @@
       localStorage.setItem('anky_coms', JSON.stringify(state.coms));
       localStorage.setItem('anky_movs', JSON.stringify(state.movimientos));
       localStorage.setItem('anky_inv', JSON.stringify(state.inventario));
+      localStorage.setItem('anky_yau', JSON.stringify(state.yautepecVales));
       localStorage.setItem('anky_logs', JSON.stringify(state.logs));
       renderAll();
     }
@@ -1064,7 +1346,7 @@
       }
     }
 
-    // VISOR DE FOTOS INTEGRADO (SOLUCIONA EL PROBLEMA DE ABOUT:BLANK EN CHROME/EDGE/CELULAR)
+    // VISOR DE FOTOS INTEGRADO (FUNCIONA EN COMs, MOVIMIENTOS, INVENTARIO Y VALES YAUTEPEC SIN ABOUT:BLANK)
     window.openPhotoLightbox = function(src) {
       if (!src) return;
       const modal = document.getElementById('photoLightboxModal');
@@ -1081,7 +1363,12 @@
       document.getElementById('lightboxImageEl').src = '';
     };
 
-    window.openEntityPhoto = function(type, id, photoIdx) {
+    window.openEntityPhoto = function(type, id, photoIdx = 0) {
+      if (type === 'yau') {
+        const vale = state.yautepecVales.find(v => String(v.id) === String(id));
+        if (vale && vale.foto) openPhotoLightbox(vale.foto);
+        return;
+      }
       let list = state.inventario;
       let key = 'id';
       if (type === 'com') { list = state.coms; key = 'folio'; }
@@ -1147,6 +1434,16 @@
           console.error("Error leyendo inventario físico de Firebase:", err);
         });
 
+        onSnapshot(collection(db, "consumos_yautepec"), (snap) => {
+          if (!snap.empty) {
+            state.yautepecVales = snap.docs.map(d => d.data());
+            localStorage.setItem('anky_yau', JSON.stringify(state.yautepecVales));
+            renderAll();
+          }
+        }, (err) => {
+          console.error("Error leyendo consumos Yautepec de Firebase:", err);
+        });
+
         badge.textContent = "Conectado a Firebase";
         badge.className = "text-xs px-2.5 py-1 rounded-full font-medium bg-emerald-50 text-emerald-700 border border-emerald-200";
       } catch (err) {
@@ -1157,7 +1454,472 @@
       }
     }
 
+    // =========================================================================
+    // MÓDULO CONSUMOS DE YAUTEPEC: OCR AUTOMÁTICO + ROTACIÓN + DICCIONARIO ANKY
+    // =========================================================================
+    function compressAndAutoOrientVale(file) {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = function(e) {
+          const img = new Image();
+          img.onload = function() {
+            const canvas = document.createElement('canvas');
+            const ctx = canvas.getContext('2d');
+            // Si la foto del vale horizontal viene tomada vertical/girada (alto > ancho), la enderezamos 270°
+            const isRotatedVertical = img.height > img.width * 1.15;
+            const maxDim = 1200;
+
+            if (isRotatedVertical) {
+              const scale = img.height > maxDim ? maxDim / img.height : 1;
+              canvas.width = img.height * scale;
+              canvas.height = img.width * scale;
+              ctx.translate(canvas.width / 2, canvas.height / 2);
+              ctx.rotate(-Math.PI / 2);
+              ctx.drawImage(img, -canvas.height / 2, -canvas.width / 2, canvas.height, canvas.width);
+            } else {
+              const scale = img.width > maxDim ? maxDim / img.width : 1;
+              canvas.width = img.width * scale;
+              canvas.height = img.height * scale;
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+            }
+
+            // Crear versión en alto contraste en escala de grises solo para mejorar lectura OCR
+            const ocrCanvas = document.createElement('canvas');
+            ocrCanvas.width = canvas.width;
+            ocrCanvas.height = canvas.height;
+            const oCtx = ocrCanvas.getContext('2d');
+            oCtx.drawImage(canvas, 0, 0);
+            const imgData = oCtx.getImageData(0, 0, ocrCanvas.width, ocrCanvas.height);
+            const d = imgData.data;
+            for (let i = 0; i < d.length; i += 4) {
+              const gray = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+              const contrasted = gray > 155 ? 255 : (gray < 95 ? 0 : gray);
+              d[i] = d[i + 1] = d[i + 2] = contrasted;
+            }
+            oCtx.putImageData(imgData, 0, 0);
+
+            resolve({
+              displayDataUrl: canvas.toDataURL('image/jpeg', 0.72),
+              ocrDataUrl: ocrCanvas.toDataURL('image/png')
+            });
+          };
+          img.src = e.target.result;
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+
+    function normalizeHandwrittenMaterial(rawLine) {
+      const clean = rawLine.toLowerCase();
+      if (/antichispa|spray/i.test(clean)) return "Spray Antichispas";
+      if (/claro|careta/i.test(clean)) return "Vidrio claro para careta de soldador";
+      if (/oscuro|#\s*11|11/i.test(clean) && /vidrio|careta|osc/i.test(clean)) return "Vidrio oscuro del #11";
+      if (/filtro|mascarilla/i.test(clean)) return "Par de filtros para mascarilla";
+      if (/7018/i.test(clean) && /5\s*\/?\s*32|532/i.test(clean)) return "Soldadura 7018 - 5/32";
+      if (/7018|soldadura|solda/i.test(clean)) return "Soldadura 7018 - 1/8";
+      return rawLine.replace(/[^a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s\-\/"#\.]/g, '').trim();
+    }
+
+    function parseYautepecOcrText(rawText) {
+      const lines = rawText.split('\n').map(l => l.trim()).filter(l => l.length > 1);
+
+      // 1. Buscar Folio (ej. Nº 547, 546, 545, 544)
+      let folio = "";
+      const folioMatch = rawText.match(/(?:N[º°o]\s*|VALE\s*)(\d{3,5})/i) || rawText.match(/\b(5\d{2})\b/);
+      if (folioMatch) folio = folioMatch[1];
+
+      // 2. Buscar Solicitante después de NOMBRE DEL SOLICITANTE
+      let solicitante = "";
+      const solBlock = rawText.match(/SOLICITANTE[:\s]+([A-ZÁÉÍÓÚÑ\s]{5,40})/i);
+      if (solBlock) {
+        solicitante = solBlock[1].split('\n')[0].replace(/AREA|DEPARTAMENTO|COMMEX|MIERCOLES|JUEVES|VIERNES|LUNES|MARTES|SABADO/gi, '').trim();
+      }
+
+      // 3. Buscar Proyecto / Commex
+      let proyecto = "9260226 - Taller Mecánico San Miguel";
+      if (/9260226|TALLER|SAN MIGUEL/i.test(rawText)) {
+        proyecto = "9260226 - Taller Mecánico San Miguel";
+      }
+
+      // 4. Extraer renglones de cantidad + material
+      const items = [];
+      const rowRegex = /^(\d{1,3})\s*[-.\s]*(PZAS?|PZS?|PZ|PAR(?:ES)?|KG|MTS?|ROLLO|JUEGO|CAJA)?\s+(.{3,})$/i;
+
+      lines.forEach(line => {
+        if (/VALE DE SALIDA|DATOS DEL SOLICITANTE|MATERIAL SOLICITADO|CANTIDAD|DESCRIPCI[OÓ]N|FIRMAS|SUPERVISOR|AUTORIZACI[OÓ]N|COMMEX|ALMACEN YAUTEPEC|MIERCOLES|JUEVES|VIERNES|LUNES|MARTES|NOVIEMBRE/i.test(line)) {
+          return;
+        }
+        const m = line.match(rowRegex);
+        if (m) {
+          const qty = parseFloat(m[1]) || 1;
+          const unit = (m[2] || 'PZA').toUpperCase();
+          const desc = normalizeHandwrittenMaterial(m[3]);
+          if (desc.length >= 3) {
+            items.push({ cantidad: qty, unidad: unit, descripcion: desc });
+          }
+        } else if (/soldadura|spray|vidrio|filtro|disco|carda|guante|lente/i.test(line)) {
+          const numInLine = line.match(/\b(\d{1,3})\b/);
+          items.push({
+            cantidad: numInLine ? parseFloat(numInLine[1]) : 1,
+            unidad: "PZA",
+            descripcion: normalizeHandwrittenMaterial(line)
+          });
+        }
+      });
+
+      return { folio, solicitante, proyecto, items };
+    }
+
+    window.handleYautepecValeUpload = async function(event) {
+      const files = Array.from(event.target.files || []);
+      if (!files.length) return;
+
+      switchTab('yautepec');
+      const selectedDate = document.getElementById('yautepecUploadDate')?.value || new Date().toISOString().split('T')[0];
+      const progressBox = document.getElementById('ocrProgressBox');
+      const progressText = document.getElementById('ocrProgressText');
+      progressBox.classList.remove('hidden');
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        progressText.textContent = `Procesando hoja ${i + 1} de ${files.length} (extrayendo texto de Marco)...`;
+
+        try {
+          const { displayDataUrl, ocrDataUrl } = await compressAndAutoOrientVale(file);
+          let rawText = "";
+          if (window.Tesseract) {
+            const res = await Tesseract.recognize(ocrDataUrl, 'spa');
+            rawText = res.data.text || "";
+          }
+          const parsed = parseYautepecOcrText(rawText);
+
+          // Si el usuario subió 1 sola foto, abrimos el modal para confirmar rápido; si subió varias en lote, abrimos la primera o guardamos las listas
+          if (files.length === 1) {
+            progressBox.classList.add('hidden');
+            openYautepecModal({
+              id: `YAU-${Date.now().toString().slice(-5)}`,
+              folio: parsed.folio || '',
+              fecha: selectedDate,
+              area: 'ALMACEN YAUTEPEC',
+              solicitante: parsed.solicitante || '',
+              proyecto: parsed.proyecto,
+              foto: displayDataUrl,
+              rawOcr: rawText,
+              items: parsed.items.length ? parsed.items : [{ cantidad: 1, unidad: 'PZA', descripcion: '' }]
+            });
+          } else {
+            // En carga múltiple (ej. las 4 fotos de hoy de un jalón), abrimos modal una por una esperando confirmación
+            progressBox.classList.add('hidden');
+            openYautepecModal({
+              id: `YAU-${Date.now().toString().slice(-5)}-${i}`,
+              folio: parsed.folio || '',
+              fecha: selectedDate,
+              area: 'ALMACEN YAUTEPEC',
+              solicitante: parsed.solicitante || '',
+              proyecto: parsed.proyecto,
+              foto: displayDataUrl,
+              rawOcr: rawText,
+              items: parsed.items.length ? parsed.items : [{ cantidad: 1, unidad: 'PZA', descripcion: '' }]
+            });
+            break;
+          }
+        } catch (err) {
+          console.error("Error leyendo imagen OCR:", err);
+          progressBox.classList.add('hidden');
+          alert("No se pudo leer automáticamente la imagen, pero puedes capturar los renglones en el formulario.");
+        }
+      }
+      event.target.value = "";
+    };
+
+    window.rotateYautepecPhoto = function(deg) {
+      if (!tempYauPhoto) return;
+      const img = new Image();
+      img.onload = function() {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        canvas.width = img.height;
+        canvas.height = img.width;
+        ctx.translate(canvas.width / 2, canvas.height / 2);
+        ctx.rotate((deg * Math.PI) / 180);
+        ctx.drawImage(img, -img.width / 2, -img.height / 2);
+        tempYauPhoto = canvas.toDataURL('image/jpeg', 0.75);
+        document.getElementById('yauPreviewImg').src = tempYauPhoto;
+      };
+      img.src = tempYauPhoto;
+    };
+
+    window.reRunYautepecOcr = async function() {
+      if (!tempYauPhoto || !window.Tesseract) return;
+      const btn = event.target;
+      const origText = btn.textContent;
+      btn.textContent = "Leyendo...";
+      try {
+        const res = await Tesseract.recognize(tempYauPhoto, 'spa');
+        const rawText = res.data.text || "";
+        document.getElementById('yauRawOcrText').value = rawText;
+        const parsed = parseYautepecOcrText(rawText);
+        if (parsed.folio && !document.getElementById('yauFolio').value) document.getElementById('yauFolio').value = parsed.folio;
+        if (parsed.solicitante && !document.getElementById('yauSolicitante').value) document.getElementById('yauSolicitante').value = parsed.solicitante;
+        if (parsed.items.length) {
+          document.getElementById('yauItemsContainer').innerHTML = '';
+          parsed.items.forEach(it => addYauItemRow(it));
+        }
+      } finally {
+        btn.textContent = origText;
+      }
+    };
+
+    window.addYauItemRow = function(item = { cantidad: 1, unidad: 'PZA', descripcion: '' }) {
+      const container = document.getElementById('yauItemsContainer');
+      const div = document.createElement('div');
+      div.className = "grid grid-cols-12 gap-1.5 items-center yau-item-row";
+      div.innerHTML = `
+        <input type="number" step="any" placeholder="Cant." value="${item.cantidad}" class="col-span-2 border border-slate-300 rounded px-2 py-1.5 font-bold yau-qty" />
+        <input type="text" placeholder="Unidad" value="${item.unidad || 'PZA'}" class="col-span-2 border border-slate-300 rounded px-2 py-1.5 uppercase yau-unit" />
+        <input type="text" placeholder="Descripción del material consumido" value="${item.descripcion}" class="col-span-7 border border-slate-300 rounded px-2.5 py-1.5 yau-desc" />
+        <button type="button" onclick="this.parentElement.remove()" class="col-span-1 text-red-500 font-bold text-center">✕</button>
+      `;
+      container.appendChild(div);
+    };
+
+    window.openYautepecModal = function(prefill = null) {
+      document.getElementById('yauForm').reset();
+      document.getElementById('yauItemsContainer').innerHTML = '';
+      const defaultDate = document.getElementById('yautepecUploadDate')?.value || new Date().toISOString().split('T')[0];
+
+      document.getElementById('yauId').value = prefill?.id || `YAU-${Date.now().toString().slice(-5)}`;
+      document.getElementById('yauFecha').value = prefill?.fecha || defaultDate;
+      document.getElementById('yauFolio').value = prefill?.folio || '';
+      document.getElementById('yauArea').value = prefill?.area || 'ALMACEN YAUTEPEC';
+      document.getElementById('yauSolicitante').value = prefill?.solicitante || '';
+      document.getElementById('yauProyecto').value = prefill?.proyecto || '9260226 - Taller Mecánico San Miguel';
+      document.getElementById('yauRawOcrText').value = prefill?.rawOcr || '';
+
+      tempYauPhoto = prefill?.foto || '';
+      const imgEl = document.getElementById('yauPreviewImg');
+      const msgEl = document.getElementById('yauNoPhotoMsg');
+      if (tempYauPhoto) {
+        imgEl.src = tempYauPhoto;
+        imgEl.classList.remove('hidden');
+        msgEl.classList.add('hidden');
+      } else {
+        imgEl.src = '';
+        imgEl.classList.add('hidden');
+        msgEl.classList.remove('hidden');
+      }
+
+      if (prefill?.items && prefill.items.length) {
+        prefill.items.forEach(it => addYauItemRow(it));
+      } else {
+        addYauItemRow();
+      }
+      openModal('yautepecModal');
+    };
+
+    window.editYauVale = function(id) {
+      const v = state.yautepecVales.find(x => x.id === id);
+      if (v) openYautepecModal(v);
+    };
+
+    window.saveYautepecVale = async function(e) {
+      e.preventDefault();
+      const id = document.getElementById('yauId').value.trim() || `YAU-${Date.now()}`;
+      const rows = Array.from(document.querySelectorAll('.yau-item-row'));
+      const items = rows.map(r => ({
+        cantidad: parseFloat(r.querySelector('.yau-qty').value) || 0,
+        unidad: (r.querySelector('.yau-unit').value || 'PZA').trim().toUpperCase(),
+        descripcion: r.querySelector('.yau-desc').value.trim()
+      })).filter(i => i.descripcion && i.cantidad > 0);
+
+      if (!items.length) {
+        alert("Agrega al menos un material consumido en el vale.");
+        return;
+      }
+
+      const newVale = {
+        id,
+        folio: document.getElementById('yauFolio').value.trim(),
+        fecha: document.getElementById('yauFecha').value,
+        area: document.getElementById('yauArea').value.trim() || 'ALMACEN YAUTEPEC',
+        solicitante: document.getElementById('yauSolicitante').value.trim(),
+        proyecto: document.getElementById('yauProyecto').value.trim(),
+        foto: tempYauPhoto,
+        rawOcr: document.getElementById('yauRawOcrText').value,
+        items
+      };
+
+      const idx = state.yautepecVales.findIndex(v => v.id === id);
+      if (idx >= 0) state.yautepecVales[idx] = newVale;
+      else state.yautepecVales.unshift(newVale);
+
+      if (db) {
+        await setDoc(doc(db, "consumos_yautepec", id), newVale).catch(console.error);
+      }
+
+      addAuditLog(`Consumos Yautepec: Registró Vale #${newVale.folio} (${newVale.fecha}) con ${items.length} partida(s) para ${newVale.solicitante}`);
+      persistState();
+      closeModal('yautepecModal');
+    };
+
+    window.deleteCurrentYauVale = async function() {
+      const id = document.getElementById('yauId').value.trim();
+      if (!id) return;
+      const v = state.yautepecVales.find(x => x.id === id);
+      if (!confirm(`¿Eliminar el Vale de Yautepec #${v?.folio || id}?`)) return;
+      state.yautepecVales = state.yautepecVales.filter(x => x.id !== id);
+      if (db) await deleteDoc(doc(db, "consumos_yautepec", id)).catch(console.error);
+      addAuditLog(`Eliminó Vale de Yautepec #${v?.folio || id}`);
+      persistState();
+      closeModal('yautepecModal');
+    };
+
+    window.setYautepecSubView = function(view) {
+      yauSubView = view;
+      document.getElementById('yautepecDailyView').classList.toggle('hidden', view !== 'DIARIO');
+      document.getElementById('yautepecTotalView').classList.toggle('hidden', view !== 'TOTAL');
+      document.getElementById('btnYauDiario').className = view === 'DIARIO'
+        ? "text-xs px-3.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold"
+        : "text-xs px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50";
+      document.getElementById('btnYauTotal').className = view === 'TOTAL'
+        ? "text-xs px-3.5 py-1.5 rounded-lg bg-slate-900 text-white font-semibold"
+        : "text-xs px-3.5 py-1.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold hover:bg-slate-50";
+    };
+
+    window.exportYautepecCSV = function() {
+      const dateFilter = document.getElementById('filterYauDate')?.value || '';
+      const vales = state.yautepecVales.filter(v => !dateFilter || v.fecha === dateFilter);
+      if (!vales.length) {
+        alert("No hay consumos de Yautepec para exportar.");
+        return;
+      }
+      const headers = ["Fecha", "Folio_Vale", "Cantidad", "Unidad", "Material_Consumido", "Solicitante", "Proyecto_Commex", "Area"];
+      const rows = [];
+      vales.forEach(v => {
+        (v.items || []).forEach(it => {
+          rows.push([
+            v.fecha, v.folio, it.cantidad, it.unidad,
+            `"${(it.descripcion || '').replace(/"/g, '""')}"`,
+            `"${(v.solicitante || '').replace(/"/g, '""')}"`,
+            `"${(v.proyecto || '').replace(/"/g, '""')}"`,
+            `"${v.area}"`
+          ].join(','));
+        });
+      });
+      const csvContent = "\uFEFF" + headers.join(',') + "\n" + rows.join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `Consumos_Yautepec_ANKY_${dateFilter || 'Total'}.csv`;
+      a.click();
+    };
+
+    function renderYautepec(q) {
+      const dateFilter = document.getElementById('filterYauDate')?.value || '';
+      const valesFiltrados = state.yautepecVales.filter(v => {
+        if (dateFilter && v.fecha !== dateFilter) return false;
+        const text = `${v.folio} ${v.fecha} ${v.solicitante} ${v.proyecto} ${(v.items || []).map(i => i.descripcion).join(' ')}`.toLowerCase();
+        if (q && !text.includes(q)) return false;
+        return true;
+      }).sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || (parseInt(b.folio) || 0) - (parseInt(a.folio) || 0));
+
+      // KPIs Yautepec
+      let totalRenglones = 0;
+      let totalPiezas = 0;
+      const diasUnicos = new Set(valesFiltrados.map(v => v.fecha));
+      valesFiltrados.forEach(v => {
+        (v.items || []).forEach(it => {
+          totalRenglones++;
+          totalPiezas += parseFloat(it.cantidad) || 0;
+        });
+      });
+
+      const kpiBox = document.getElementById('yautepecKpis');
+      if (kpiBox) {
+        kpiBox.innerHTML = [
+          { label: "Vales Registrados", val: valesFiltrados.length, color: "text-indigo-700" },
+          { label: "Días Reportados", val: diasUnicos.size, color: "text-slate-900" },
+          { label: "Partidas Consumidas", val: totalRenglones, color: "text-blue-700" },
+          { label: "Unidades Totales Salidas", val: totalPiezas, color: "text-emerald-700" }
+        ].map(k => `
+          <div class="bg-white p-3.5 rounded-xl border border-slate-200 shadow-sm">
+            <p class="text-[11px] font-medium text-slate-500">${k.label}</p>
+            <p class="text-2xl font-bold mt-1 ${k.color}">${k.val}</p>
+          </div>
+        `).join('');
+      }
+
+      // Tabla 1: Detalle por Día y Vale
+      const dailyBody = document.getElementById('yautepecDailyTableBody');
+      if (dailyBody) {
+        const flatRows = [];
+        valesFiltrados.forEach(v => {
+          (v.items || []).forEach(it => {
+            flatRows.push({ vale: v, item: it });
+          });
+        });
+
+        dailyBody.innerHTML = flatRows.length ? flatRows.map(({ vale, item }) => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 font-medium text-slate-700 whitespace-nowrap">${vale.fecha}</td>
+            <td class="py-3 px-4 font-bold text-red-700 whitespace-nowrap">Vale #${vale.folio}</td>
+            <td class="py-3 px-4 font-bold text-slate-900 whitespace-nowrap">${item.cantidad} <span class="text-[10px] font-normal text-slate-500">${item.unidad}</span></td>
+            <td class="py-3 px-4 font-semibold text-slate-900">${item.descripcion}</td>
+            <td class="py-3 px-4 text-slate-700">${vale.solicitante}</td>
+            <td class="py-3 px-4 text-slate-500 text-[11px]">${vale.proyecto}</td>
+            <td class="py-3 px-4">
+              ${vale.foto ? `
+                <img src="${vale.foto}" onclick="openEntityPhoto('yau', '${vale.id}')" class="w-9 h-9 rounded-lg object-cover border border-slate-300 cursor-pointer hover:scale-105 transition shadow-sm" title="Clic para ver vale original" />
+              ` : `<span class="text-[10px] text-slate-400">Sin foto</span>`}
+            </td>
+            <td class="py-3 px-4 text-right">
+              <button onclick="editYauVale('${vale.id}')" class="bg-slate-100 hover:bg-slate-200 text-slate-800 px-2.5 py-1 rounded font-medium">Editar Vale</button>
+            </td>
+          </tr>
+        `).join('') : `<tr><td colspan="8" class="p-6 text-center text-xs text-slate-400">No hay consumos registrados en Yautepec con ese filtro.</td></tr>`;
+      }
+
+      // Tabla 2: Control Total Acumulado por Material
+      const totalBody = document.getElementById('yautepecTotalTableBody');
+      if (totalBody) {
+        const grouped = {};
+        valesFiltrados.forEach(v => {
+          (v.items || []).forEach(it => {
+            const key = `${it.descripcion.toLowerCase().trim()}__${it.unidad.toUpperCase()}`;
+            if (!grouped[key]) {
+              grouped[key] = {
+                descripcion: it.descripcion,
+                unidad: it.unidad,
+                total: 0,
+                vales: new Set(),
+                solicitantes: new Set()
+              };
+            }
+            grouped[key].total += parseFloat(it.cantidad) || 0;
+            grouped[key].vales.add(`#${v.folio} (${v.fecha})`);
+            if (v.solicitante) grouped[key].solicitantes.add(v.solicitante);
+          });
+        });
+
+        const summaryList = Object.values(grouped).sort((a, b) => b.total - a.total);
+        totalBody.innerHTML = summaryList.length ? summaryList.map(g => `
+          <tr class="hover:bg-slate-50">
+            <td class="py-3 px-4 font-bold text-slate-900">${g.descripcion}</td>
+            <td class="py-3 px-4 text-slate-500">${g.unidad}</td>
+            <td class="py-3 px-4">
+              <span class="px-2.5 py-1 rounded-lg bg-indigo-50 text-indigo-800 font-bold text-sm">${g.total}</span>
+            </td>
+            <td class="py-3 px-4 text-slate-600 text-[11px]">${Array.from(g.vales).join(', ')}</td>
+            <td class="py-3 px-4 text-slate-600 text-[11px]">${Array.from(g.solicitantes).join(', ')}</td>
+          </tr>
+        `).join('') : `<tr><td colspan="5" class="p-6 text-center text-xs text-slate-400">No hay datos acumulados.</td></tr>`;
+      }
+    }
+
+    // =========================================================================
     // LECTOR AUTOMÁTICO DE PDFs DE EVIDENCE ERP
+    // =========================================================================
     window.handlePdfAutoRead = async function(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -1361,10 +2123,14 @@
       const badgeInv = document.getElementById('badgeInventario');
       if (badgeInv) badgeInv.textContent = state.inventario.length;
 
+      const badgeYau = document.getElementById('badgeYautepec');
+      if (badgeYau) badgeYau.textContent = state.yautepecVales.length;
+
       renderDashboard(q);
       renderComs(q);
       renderMovimientos(q);
       renderInventario(q);
+      renderYautepec(q);
       renderLogistica(q);
       renderAclaracionesYLogs();
       lucide.createIcons();
@@ -1382,8 +2148,8 @@
         { label: "Salidas sin Enviar Físico", val: sinEnviar.length, color: "text-amber-600", tab: "logistica" },
         { label: "Envíos Programados Hoy", val: enviosHoy.length, color: "text-blue-600", tab: "logistica" },
         { label: "COMs por Aclarar (Jefes)", val: comsAclarar.length, color: "text-red-600", tab: "aclaraciones" },
-        { label: "Partidas Inventario Físico", val: state.inventario.length, color: "text-emerald-600", tab: "inventario" },
-        { label: "Equipos Mina por Reparar", val: invDanados.length, color: "text-orange-600", tab: "inventario" }
+        { label: "Partidas Inventario Piso", val: state.inventario.length, color: "text-emerald-600", tab: "inventario" },
+        { label: "Vales Consumo Yautepec", val: state.yautepecVales.length, color: "text-indigo-600", tab: "yautepec" }
       ];
 
       document.getElementById('dashboardKpis').innerHTML = kpis.map(k => `
@@ -1527,8 +2293,8 @@
               </div>
               ${(c.fotos && c.fotos.length) ? `
                 <div class="flex items-center gap-1.5">
-                  <span class="text-emerald-700 font-medium">📷 Fotos:</span>
-                  ${c.fotos.map((f, idx) => `<img src="${f}" onclick="openEntityPhoto('com', '${c.folio}', ${idx})" class="w-8 h-8 rounded object-cover border border-slate-300 cursor-pointer hover:scale-105 transition" title="Clic para ampliar foto" />`).join('')}
+                  <span class="text-emerald-700 font-medium">📷 Fotos COM:</span>
+                  ${c.fotos.map((f, idx) => `<img src="${f}" onclick="openEntityPhoto('com', '${c.folio}', ${idx})" class="w-9 h-9 rounded-lg object-cover border border-slate-300 cursor-pointer hover:scale-105 transition shadow-sm" title="Clic para ampliar foto" />`).join('')}
                 </div>
               ` : ''}
             </div>
@@ -1537,7 +2303,7 @@
       }).join('') : `<p class="text-xs text-slate-400 bg-white p-6 rounded-xl border border-slate-200">No se encontraron COMs con ese filtro.</p>`;
     }
 
-    // RENDER DE MOVIMIENTOS CON FILTROS AVANZADOS Y ORDENAMIENTO
+    // RENDER DE MOVIMIENTOS CON FILTROS, ORDENAMIENTO Y MINIATURAS DIRECTAS AL VISOR
     function renderMovimientos(q) {
       const fDest = document.getElementById('filterMovDestino')?.value || 'ALL';
       const fEstEv = document.getElementById('filterMovEstatusEv')?.value || 'ALL';
@@ -1602,6 +2368,13 @@
               m.estadoLogistico.includes('Cancelado') ? 'bg-red-50 text-red-700' : 'bg-blue-50 text-blue-800'
             }">${m.estadoLogistico}</span>
             ${m.unidad ? `<div class="text-[11px] text-slate-500 mt-0.5">🚛 Unidad: ${m.unidad}</div>` : ''}
+            ${(m.fotos && m.fotos.length) ? `
+              <div class="flex items-center gap-1.5 mt-1.5">
+                ${m.fotos.map((f, idx) => `
+                  <img src="${f}" onclick="openEntityPhoto('mov', '${m.folio}', ${idx})" class="w-8 h-8 rounded object-cover border border-slate-300 cursor-pointer hover:scale-105 transition shadow-sm" title="Clic para ampliar foto del movimiento" />
+                `).join('')}
+              </div>
+            ` : ''}
           </td>
           <td class="py-3 px-4">
             <input type="date" value="${m.fechaEnvio || ''}" onchange="quickUpdateDate('${m.folio}', this.value)" class="border border-slate-200 rounded px-2 py-1 text-xs" />
@@ -1614,7 +2387,7 @@
       `).join('') : `<tr><td colspan="8" class="p-6 text-center text-xs text-slate-400">No hay movimientos que coincidan con los filtros seleccionados.</td></tr>`;
     }
 
-    // RENDER DE INVENTARIO FÍSICO CUERNAVACA (CON MINIATURAS FOTOS DIRECTAS AL VISOR LIGHTBOX)
+    // RENDER DE INVENTARIO FÍSICO CUERNAVACA
     function renderInventario(q) {
       const catFilter = document.getElementById('filterInvCategoria')?.value || 'ALL';
       const condFilter = document.getElementById('filterInvCondicion')?.value || 'ALL';
@@ -1751,6 +2524,11 @@
                     <span class="font-semibold text-blue-700">${m.destino}</span>
                   </div>
                   <p class="text-slate-500 text-[11px] line-clamp-2">${m.descripcion}</p>
+                  ${(m.fotos && m.fotos.length) ? `
+                    <div class="flex gap-1.5">
+                      ${m.fotos.map((f, idx) => `<img src="${f}" onclick="openEntityPhoto('mov', '${m.folio}', ${idx})" class="w-8 h-8 rounded object-cover border border-slate-300 cursor-pointer" title="Ampliar foto" />`).join('')}
+                    </div>
+                  ` : ''}
                   <div class="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-slate-100">
                     <div>
                       <label class="text-[10px] text-slate-400 block">Fecha tentativa envío:</label>
@@ -1804,7 +2582,7 @@
 
     // FUNCIONES INTERACTIVAS Y DE FILTRADO/ORDENAMIENTO
     window.switchTab = function(tabName) {
-      ['dashboard', 'coms', 'movimientos', 'inventario', 'logistica', 'aclaraciones'].forEach(t => {
+      ['dashboard', 'coms', 'movimientos', 'inventario', 'yautepec', 'logistica', 'aclaraciones'].forEach(t => {
         document.getElementById(`view-${t}`)?.classList.add('hidden');
         document.getElementById(`tab-${t}`)?.classList.remove('tab-active');
       });
@@ -2231,7 +3009,10 @@
       alert("✅ Configuración guardada.");
     };
 
-    // Inicializar al abrir
+    // Inicializar fecha por defecto de hoy en Consumos Yautepec y conectar Firebase
+    const yauDateEl = document.getElementById('yautepecUploadDate');
+    if (yauDateEl) yauDateEl.value = new Date().toISOString().split('T')[0];
+
     initCloudConnection();
     renderAll();
   </script>
